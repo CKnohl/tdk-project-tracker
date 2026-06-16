@@ -1,0 +1,188 @@
+'use server';
+
+import { revalidatePath } from 'next/cache';
+import { createClient } from '@/lib/supabase/server';
+import { projectSchema, type ProjectInput } from '@/lib/validators';
+import { requireEditor, requireManager, fail, errMessage, type ActionResult } from './_helpers';
+import { notifyProjectTeam } from '@/lib/notify';
+import { WORKFLOW_STATE } from '@/lib/constants';
+import type { ProjectStatus, ProjectPhase, WorkflowState, InactiveReason } from '@/types/database.types';
+
+export async function createProject(input: ProjectInput): Promise<ActionResult> {
+  try {
+    const user = await requireEditor();
+    const parsed = projectSchema.safeParse(input);
+    if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? 'Invalid input');
+    const v = parsed.data;
+    const supabase = await createClient();
+
+    const { data, error } = await supabase
+      .from('projects')
+      .insert({
+        project_number: v.project_number,
+        name: v.name,
+        company_id: v.company_id,
+        status: v.status,
+        phase: v.phase,
+        workflow_state: v.workflow_state,
+        description: v.description ?? null,
+        scope: v.scope ?? null,
+        project_manager_id: v.project_manager_id ?? null,
+        target_completion_date: v.target_completion_date ?? null,
+        inactive_reason: v.inactive_reason ?? null,
+        created_by: user.id,
+      })
+      .select('id')
+      .single();
+    if (error) return fail(error.message);
+
+    if (v.staff_ids.length > 0) {
+      await supabase
+        .from('project_staff')
+        .insert(v.staff_ids.map((staff_id) => ({ project_id: data.id, staff_id })));
+    }
+
+    revalidatePath('/projects');
+    revalidatePath('/dashboard');
+    return { ok: true, id: data.id };
+  } catch (e) {
+    return fail(errMessage(e));
+  }
+}
+
+export async function updateProject(id: string, input: ProjectInput): Promise<ActionResult> {
+  try {
+    const user = await requireEditor();
+    const parsed = projectSchema.safeParse(input);
+    if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? 'Invalid input');
+    const v = parsed.data;
+    const supabase = await createClient();
+
+    const { error } = await supabase
+      .from('projects')
+      .update({
+        project_number: v.project_number,
+        name: v.name,
+        company_id: v.company_id,
+        status: v.status,
+        phase: v.phase,
+        workflow_state: v.workflow_state,
+        description: v.description ?? null,
+        scope: v.scope ?? null,
+        project_manager_id: v.project_manager_id ?? null,
+        target_completion_date: v.target_completion_date ?? null,
+        inactive_reason: v.status === 'inactive' ? (v.inactive_reason ?? null) : null,
+      })
+      .eq('id', id);
+    if (error) return fail(error.message);
+
+    await notifyProjectTeam({ projectId: id, type: 'project_updated', title: 'Project updated', excludeUserId: user.id });
+
+    revalidatePath(`/projects/${id}`);
+    revalidatePath('/projects');
+    return { ok: true, id };
+  } catch (e) {
+    return fail(errMessage(e));
+  }
+}
+
+export async function setProjectStatus(
+  id: string,
+  status: ProjectStatus,
+  inactiveReason?: InactiveReason,
+): Promise<ActionResult> {
+  try {
+    await requireEditor();
+    if (status === 'inactive' && !inactiveReason) return fail('Select why the project is inactive.');
+    const supabase = await createClient();
+    const { error } = await supabase
+      .from('projects')
+      .update({ status, inactive_reason: status === 'inactive' ? inactiveReason : null })
+      .eq('id', id);
+    if (error) return fail(error.message);
+    revalidatePath(`/projects/${id}`);
+    revalidatePath('/projects');
+    revalidatePath('/archive');
+    return { ok: true, id };
+  } catch (e) {
+    return fail(errMessage(e));
+  }
+}
+
+export async function setProjectPhase(id: string, phase: ProjectPhase): Promise<ActionResult> {
+  try {
+    await requireEditor();
+    const supabase = await createClient();
+    const { error } = await supabase.from('projects').update({ phase }).eq('id', id);
+    if (error) return fail(error.message);
+    revalidatePath(`/projects/${id}`);
+    return { ok: true, id };
+  } catch (e) {
+    return fail(errMessage(e));
+  }
+}
+
+export async function setWorkflowState(id: string, workflow_state: WorkflowState): Promise<ActionResult> {
+  try {
+    const user = await requireEditor();
+    const supabase = await createClient();
+    const { error } = await supabase.from('projects').update({ workflow_state }).eq('id', id);
+    if (error) return fail(error.message);
+
+    if (workflow_state !== 'normal') {
+      await notifyProjectTeam({
+        projectId: id,
+        type: 'follow_up_due',
+        title: `Project marked ${WORKFLOW_STATE[workflow_state].label}`,
+        excludeUserId: user.id,
+      });
+    }
+
+    revalidatePath(`/projects/${id}`);
+    revalidatePath('/dashboard');
+    return { ok: true, id };
+  } catch (e) {
+    return fail(errMessage(e));
+  }
+}
+
+export async function deleteProject(id: string): Promise<ActionResult> {
+  try {
+    await requireManager();
+    const supabase = await createClient();
+    const { error } = await supabase.from('projects').delete().eq('id', id);
+    if (error) return fail(error.message);
+    revalidatePath('/projects');
+    revalidatePath('/archive');
+    return { ok: true };
+  } catch (e) {
+    return fail(errMessage(e));
+  }
+}
+
+export async function setProjectStaff(projectId: string, staffIds: string[]): Promise<ActionResult> {
+  try {
+    await requireEditor();
+    const supabase = await createClient();
+    // Replace the assignment set.
+    const { data: existing } = await supabase
+      .from('project_staff')
+      .select('staff_id')
+      .eq('project_id', projectId);
+    const current = new Set((existing ?? []).map((r) => r.staff_id));
+    const next = new Set(staffIds);
+    const toAdd = staffIds.filter((s) => !current.has(s));
+    const toRemove = [...current].filter((s) => !next.has(s));
+
+    if (toAdd.length > 0) {
+      await supabase.from('project_staff').insert(toAdd.map((staff_id) => ({ project_id: projectId, staff_id })));
+    }
+    if (toRemove.length > 0) {
+      await supabase.from('project_staff').delete().eq('project_id', projectId).in('staff_id', toRemove);
+    }
+    revalidatePath(`/projects/${projectId}`);
+    return { ok: true, id: projectId };
+  } catch (e) {
+    return fail(errMessage(e));
+  }
+}

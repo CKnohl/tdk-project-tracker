@@ -1,0 +1,172 @@
+import { createClient } from '@/lib/supabase/server';
+import type {
+  ProjectListItem,
+  TaskWithStaff,
+  SubmittalWithProject,
+  SubmittalHistoryItem,
+  ContactItem,
+  NoteItem,
+  FileItem,
+  ActivityItem,
+  ProjectStaffMember,
+} from '@/lib/types';
+import type { ProjectStatsRow, ProjectStatus, ProjectPhase, WorkflowState } from '@/types/database.types';
+
+const PROJECT_SELECT =
+  'id,project_number,name,company_id,status,phase,workflow_state,workflow_state_since,description,scope,project_manager_id,target_completion_date,inactive_reason,last_activity_at,created_by,created_at,updated_at,company:companies(id,key,name,color),manager:staff!projects_project_manager_id_fkey(id,full_name,initials)';
+
+export interface ProjectFilters {
+  q?: string;
+  status?: ProjectStatus | 'all';
+  company?: number;
+  phase?: ProjectPhase;
+  workflow?: WorkflowState;
+  sort?: 'recent' | 'name' | 'number' | 'target';
+  archived?: boolean;
+}
+
+export type ProjectCard = ProjectListItem & { stats: ProjectStatsRow | null };
+
+export async function getProjects(filters: ProjectFilters = {}): Promise<ProjectCard[]> {
+  const supabase = await createClient();
+  let query = supabase.from('projects').select(PROJECT_SELECT);
+
+  if (filters.archived) {
+    query = query.eq('status', 'inactive');
+  } else if (filters.status && filters.status !== 'all') {
+    query = query.eq('status', filters.status);
+  } else {
+    query = query.in('status', ['active', 'on_hold']);
+  }
+
+  if (filters.company) query = query.eq('company_id', filters.company);
+  if (filters.phase) query = query.eq('phase', filters.phase);
+  if (filters.workflow) query = query.eq('workflow_state', filters.workflow);
+  if (filters.q) {
+    const term = filters.q.replace(/[%,()]/g, '');
+    query = query.or(`name.ilike.%${term}%,project_number.ilike.%${term}%,description.ilike.%${term}%`);
+  }
+
+  switch (filters.sort) {
+    case 'name':
+      query = query.order('name', { ascending: true });
+      break;
+    case 'number':
+      query = query.order('project_number', { ascending: true });
+      break;
+    case 'target':
+      query = query.order('target_completion_date', { ascending: true, nullsFirst: false });
+      break;
+    default:
+      query = query.order('last_activity_at', { ascending: false });
+  }
+
+  const { data, error } = await query.returns<ProjectListItem[]>();
+  if (error || !data) return [];
+
+  const ids = data.map((p) => p.id);
+  const statsMap = new Map<string, ProjectStatsRow>();
+  if (ids.length) {
+    const { data: stats } = await supabase.from('v_project_stats').select('*').in('project_id', ids);
+    (stats ?? []).forEach((s) => statsMap.set(s.project_id, s));
+  }
+
+  return data.map((p) => ({ ...p, stats: statsMap.get(p.id) ?? null }));
+}
+
+export interface ProjectDetail {
+  project: ProjectListItem;
+  staff: ProjectStaffMember[];
+  tasks: TaskWithStaff[];
+  submittals: SubmittalWithProject[];
+  submittalHistory: Record<string, SubmittalHistoryItem[]>;
+  contacts: ContactItem[];
+  notes: NoteItem[];
+  files: FileItem[];
+  activity: ActivityItem[];
+  stats: ProjectStatsRow | null;
+}
+
+export async function getProjectDetail(id: string): Promise<ProjectDetail | null> {
+  const supabase = await createClient();
+
+  const { data: project } = await supabase
+    .from('projects')
+    .select(PROJECT_SELECT)
+    .eq('id', id)
+    .returns<ProjectListItem[]>()
+    .maybeSingle();
+  if (!project) return null;
+
+  const [staff, tasks, submittals, contacts, notes, files, activity, stats] = await Promise.all([
+    supabase
+      .from('project_staff')
+      .select('role_on_project, staff:staff(id,full_name,initials)')
+      .eq('project_id', id)
+      .returns<ProjectStaffMember[]>(),
+    supabase
+      .from('tasks')
+      .select(
+        'id,project_id,name,description,priority,status,due_date,completion_pct,notes,created_by,completed_at,created_at,updated_at,assignees:task_staff(staff:staff(id,full_name,initials))',
+      )
+      .eq('project_id', id)
+      .order('status', { ascending: true })
+      .order('due_date', { ascending: true, nullsFirst: false })
+      .returns<TaskWithStaff[]>(),
+    supabase
+      .from('project_submittals')
+      .select(
+        'id,project_id,submission_type,agency,submission_date,response_due_date,follow_up_date,assigned_staff_id,status,notes,created_by,created_at,updated_at,assigned:staff(id,full_name,initials)',
+      )
+      .eq('project_id', id)
+      .order('created_at', { ascending: false })
+      .returns<SubmittalWithProject[]>(),
+    supabase.from('project_contacts').select('*').eq('project_id', id).order('name').returns<ContactItem[]>(),
+    supabase
+      .from('project_notes')
+      .select('id,project_id,body,author_id,created_at,updated_at,author:users(full_name)')
+      .eq('project_id', id)
+      .order('created_at', { ascending: false })
+      .returns<NoteItem[]>(),
+    supabase
+      .from('project_files')
+      .select('id,project_id,storage_path,file_name,mime_type,size_bytes,uploaded_by,created_at,uploader:users(full_name)')
+      .eq('project_id', id)
+      .order('created_at', { ascending: false })
+      .returns<FileItem[]>(),
+    supabase
+      .from('activity_logs')
+      .select('id,actor_id,action,entity_type,entity_id,project_id,summary,metadata,created_at,actor:users(id,full_name),project:projects(id,project_number,name)')
+      .eq('project_id', id)
+      .order('created_at', { ascending: false })
+      .limit(50)
+      .returns<ActivityItem[]>(),
+    supabase.from('v_project_stats').select('*').eq('project_id', id).maybeSingle(),
+  ]);
+
+  // Submittal status history (every change, with the responsible user).
+  const submittalIds = (submittals.data ?? []).map((s) => s.id);
+  const submittalHistory: Record<string, SubmittalHistoryItem[]> = {};
+  if (submittalIds.length) {
+    const { data: history } = await supabase
+      .from('submittal_history')
+      .select('id,submittal_id,from_status,to_status,note,changed_by,created_at,actor:users(full_name)')
+      .in('submittal_id', submittalIds)
+      .order('created_at', { ascending: true })
+      .returns<SubmittalHistoryItem[]>();
+    for (const h of history ?? []) (submittalHistory[h.submittal_id] ??= []).push(h);
+  }
+
+  return {
+    project,
+    staff: staff.data ?? [],
+    tasks: tasks.data ?? [],
+    submittals: submittals.data ?? [],
+    submittalHistory,
+    contacts: contacts.data ?? [],
+    notes: notes.data ?? [],
+    files: files.data ?? [],
+    activity: activity.data ?? [],
+    stats: stats.data ?? null,
+  };
+}

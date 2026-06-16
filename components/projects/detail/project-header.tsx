@@ -1,0 +1,160 @@
+'use client';
+
+import * as React from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
+import { ChevronLeft, MoreHorizontal, Pencil, Archive, RotateCcw, Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { MetaBadge } from '@/components/shared/meta-badge';
+import { ProjectForm } from '@/components/projects/project-form';
+import { PROJECT_STATUS, WORKFLOW_STATE, PROJECT_PHASE, PHASE_ORDER } from '@/lib/constants';
+import {
+  setProjectPhase,
+  setWorkflowState,
+  setProjectStatus,
+  deleteProject,
+} from '@/lib/actions/projects';
+import type { CompanyOption, StaffOption } from '@/lib/data/reference';
+import type { ProjectListItem } from '@/lib/types';
+import type { InactiveReason } from '@/types/database.types';
+
+const ARCHIVE_REASONS: { value: InactiveReason; label: string }[] = [
+  { value: 'completed', label: 'Completed' },
+  { value: 'lost_bid', label: 'Lost Bid' },
+  { value: 'cancelled', label: 'Cancelled' },
+  { value: 'fell_through', label: 'Fell Through' },
+];
+
+export function ProjectHeader({
+  project,
+  assignedStaffIds,
+  companies,
+  staff,
+  canEdit,
+  canManage,
+}: {
+  project: ProjectListItem;
+  assignedStaffIds: string[];
+  companies: CompanyOption[];
+  staff: StaffOption[];
+  canEdit: boolean;
+  canManage: boolean;
+}) {
+  const router = useRouter();
+  const [editing, setEditing] = React.useState(false);
+
+  const run = async (p: Promise<{ ok: boolean; error?: string }>, ok?: string) => {
+    const res = await p;
+    if (!res.ok) toast.error(res.error ?? 'Failed');
+    else { if (ok) toast.success(ok); router.refresh(); }
+  };
+
+  return (
+    <div className="space-y-3">
+      <Link href="/projects" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+        <ChevronLeft className="h-4 w-4" /> Projects
+      </Link>
+
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-sm text-muted-foreground">{project.project_number}</span>
+            {project.company && (
+              <span className="rounded px-1.5 py-0.5 text-[10px] font-medium text-white" style={{ backgroundColor: project.company.color ?? '#475569' }}>
+                {project.company.name}
+              </span>
+            )}
+          </div>
+          <h1 className="truncate text-2xl font-semibold tracking-tight">{project.name}</h1>
+          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+            <MetaBadge meta={PROJECT_STATUS[project.status]} />
+            {project.workflow_state !== 'normal' && <MetaBadge meta={WORKFLOW_STATE[project.workflow_state]} />}
+            <MetaBadge meta={PROJECT_PHASE[project.phase]} />
+          </div>
+        </div>
+
+        {canEdit && (
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={project.phase} onValueChange={(v) => run(setProjectPhase(project.id, v as never), 'Phase updated')}>
+              <SelectTrigger className="h-9 w-[170px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {PHASE_ORDER.map((p) => <SelectItem key={p} value={p}>{PROJECT_PHASE[p].label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={project.workflow_state} onValueChange={(v) => run(setWorkflowState(project.id, v as never), 'Workflow updated')}>
+              <SelectTrigger className="h-9 w-[170px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {Object.values(WORKFLOW_STATE).map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="sm" onClick={() => setEditing(true)}><Pencil className="h-4 w-4" /> Edit</Button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon" className="h-9 w-9"><MoreHorizontal className="h-4 w-4" /></Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuLabel>Status</DropdownMenuLabel>
+                {project.status !== 'active' && (
+                  <DropdownMenuItem onSelect={() => run(setProjectStatus(project.id, 'active'), 'Restored to active')}>
+                    <RotateCcw className="h-4 w-4" /> Set Active
+                  </DropdownMenuItem>
+                )}
+                {project.status !== 'on_hold' && (
+                  <DropdownMenuItem onSelect={() => run(setProjectStatus(project.id, 'on_hold'), 'Set on hold')}>
+                    Set On Hold
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>Archive as…</DropdownMenuLabel>
+                {ARCHIVE_REASONS.map((r) => (
+                  <DropdownMenuItem key={r.value} onSelect={() => run(setProjectStatus(project.id, 'inactive', r.value), 'Archived')}>
+                    <Archive className="h-4 w-4" /> {r.label}
+                  </DropdownMenuItem>
+                ))}
+                {canManage && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      className="text-destructive focus:text-destructive"
+                      onSelect={() => {
+                        if (confirm('Permanently delete this project and all its data?'))
+                          run(deleteProject(project.id).then((r) => { if (r.ok) router.push('/projects'); return r; }), 'Project deleted');
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" /> Delete project
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
+      </div>
+
+      <Dialog open={editing} onOpenChange={setEditing}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader><DialogTitle>Edit project</DialogTitle></DialogHeader>
+          <ProjectForm
+            companies={companies}
+            staff={staff}
+            project={project}
+            assignedStaffIds={assignedStaffIds}
+            onSuccess={() => { setEditing(false); router.refresh(); }}
+          />
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

@@ -1,0 +1,115 @@
+'use client';
+
+import * as React from 'react';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
+import { Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Field } from '@/components/shared/field';
+import { MultiSelect } from '@/components/shared/multi-select';
+import { TASK_STATUS, TASK_PRIORITY } from '@/lib/constants';
+import { taskSchema } from '@/lib/validators';
+import { createTask, updateTask } from '@/lib/actions/tasks';
+import type { StaffOption } from '@/lib/data/reference';
+import type { TaskWithStaff } from '@/lib/types';
+
+export function TaskForm({
+  projectId,
+  staff,
+  task,
+  onSuccess,
+}: {
+  projectId: string;
+  staff: StaffOption[];
+  task?: TaskWithStaff;
+  onSuccess: () => void;
+}) {
+  const router = useRouter();
+  const [pending, setPending] = React.useState(false);
+  const [errors, setErrors] = React.useState<Record<string, string>>({});
+  const [form, setForm] = React.useState({
+    name: task?.name ?? '',
+    description: task?.description ?? '',
+    priority: task?.priority ?? 'medium',
+    status: task?.status ?? 'not_started',
+    due_date: task?.due_date ?? '',
+    completion_pct: task?.completion_pct ?? 0,
+    staff_ids: task?.assignees?.map((a) => a.staff?.id).filter(Boolean) as string[] ?? [],
+  });
+  const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) => setForm((f) => ({ ...f, [k]: v }));
+  const staffOptions = staff.filter((s) => s.is_active).map((s) => ({ value: s.id, label: s.full_name }));
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setErrors({});
+    const input = {
+      project_id: projectId,
+      name: form.name,
+      description: form.description || undefined,
+      priority: form.priority,
+      status: form.status,
+      due_date: form.due_date || undefined,
+      completion_pct: form.completion_pct,
+      staff_ids: form.staff_ids,
+    };
+    const parsed = taskSchema.safeParse(input);
+    if (!parsed.success) {
+      setErrors({ name: parsed.error.issues[0]?.message ?? 'Invalid input' });
+      return;
+    }
+    setPending(true);
+    const res = task ? await updateTask(task.id, parsed.data) : await createTask(parsed.data);
+    setPending(false);
+    if (!res.ok) return toast.error(res.error);
+    toast.success(task ? 'Task updated' : 'Task added');
+    onSuccess();
+    router.refresh();
+  }
+
+  return (
+    <form onSubmit={onSubmit} className="space-y-4">
+      <Field label="Task name" required error={errors.name}>
+        <Input value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="Submit FOIL request" />
+      </Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Priority">
+          <Select value={form.priority} onValueChange={(v) => set('priority', v as typeof form.priority)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {Object.values(TASK_PRIORITY).map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field label="Status">
+          <Select value={form.status} onValueChange={(v) => set('status', v as typeof form.status)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {Object.values(TASK_STATUS).map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field label="Due date">
+          <Input type="date" value={form.due_date} onChange={(e) => set('due_date', e.target.value)} />
+        </Field>
+        <Field label="Completion %">
+          <Input type="number" min={0} max={100} value={form.completion_pct} onChange={(e) => set('completion_pct', Number(e.target.value))} />
+        </Field>
+      </div>
+      <Field label="Assignees">
+        <MultiSelect options={staffOptions} selected={form.staff_ids} onChange={(v) => set('staff_ids', v)} placeholder="Assign staff" />
+      </Field>
+      <Field label="Description">
+        <Textarea value={form.description} onChange={(e) => set('description', e.target.value)} rows={2} />
+      </Field>
+      <div className="flex justify-end">
+        <Button type="submit" disabled={pending}>
+          {pending && <Loader2 className="h-4 w-4 animate-spin" />}
+          {task ? 'Save' : 'Add task'}
+        </Button>
+      </div>
+    </form>
+  );
+}

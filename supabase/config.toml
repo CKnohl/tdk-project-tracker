@@ -1,0 +1,39 @@
+# Supabase local configuration.
+# Link to a remote project with: supabase link --project-ref <ref>
+project_id = "tdk-project-tracker"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3000/auth/callback"]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+enable_signup = true
+
+# Microsoft (Azure) provider is configured in the hosted dashboard for production.
+# For local testing you can enable it here with env-backed secrets:
+# [auth.external.azure]
+# enabled = true
+# client_id = "env(AZURE_CLIENT_ID)"
+# secret = "env(AZURE_CLIENT_SECRET)"
+# url = "https://login.microsoftonline.com/common/v2.0"
+
+[storage]
+enabled = true
+file_size_limit = "52428800"  # 50 MB
