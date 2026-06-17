@@ -44,3 +44,14 @@ yarn-error.log*
 .idea
 .vscode/*
 !.vscode/extensions.json
+# local node runtime (accidentally committed)
+node.exe
+npm
+npm.cmd
+npm.ps1
+npx
+npx.cmd
+npx.ps1
+corepack
+corepack.cmd
+nodevars.bat
