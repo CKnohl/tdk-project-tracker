@@ -30,6 +30,12 @@ export function formatDateTime(value: string | Date | null | undefined) {
   return d ? format(d, 'MMM d, yyyy h:mm a') : '—';
 }
 
+/** Time only e.g. "3:30 PM". */
+export function formatTime(value: string | Date | null | undefined) {
+  const d = toDate(value);
+  return d ? format(d, 'h:mm a') : '';
+}
+
 /** "in 3 days" / "2 days ago". */
 export function formatRelative(value: string | Date | null | undefined) {
   const d = toDate(value);
@@ -53,6 +59,12 @@ export function initialsFromName(name: string | null | undefined) {
   if (!name) return '??';
   const parts = name.trim().split(/\s+/);
   return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || '??';
+}
+
+/** Short company tag for badges. "mp" -> "M&P", "tdk" -> "TDK". */
+export function formatCompanyTag(key: string | null | undefined) {
+  if (!key) return '';
+  return key.toLowerCase() === 'mp' ? 'M&P' : key.toUpperCase();
 }
 
 /** Title-case a snake_case enum value: "engineering_design" -> "Engineering Design". */

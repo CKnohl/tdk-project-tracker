@@ -2,14 +2,15 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Building2 } from 'lucide-react';
+import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { NAV_ITEMS, isActive } from './nav';
+import { Logo, LogoIcon } from '@/components/shared/logo';
 import { cn } from '@/lib/utils';
 
-export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
+export function SidebarNav({ collapsed, onNavigate }: { collapsed?: boolean; onNavigate?: () => void }) {
   const pathname = usePathname();
   return (
-    <nav className="flex flex-col gap-1 px-3 py-4">
+    <nav className={cn('flex flex-col gap-1 py-4', collapsed ? 'items-center px-2' : 'px-3')}>
       {NAV_ITEMS.map((item) => {
         const active = isActive(item, pathname);
         const Icon = item.icon;
@@ -18,15 +19,17 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
             key={item.href}
             href={item.href}
             onClick={onNavigate}
+            title={collapsed ? item.label : undefined}
             className={cn(
-              'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+              'flex items-center rounded-md text-sm font-medium transition-colors',
+              collapsed ? 'h-10 w-10 justify-center' : 'gap-3 px-3 py-2',
               active
                 ? 'bg-primary text-primary-foreground'
                 : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
             )}
           >
             <Icon className="h-4 w-4 shrink-0" />
-            {item.label}
+            {!collapsed && item.label}
           </Link>
         );
       })}
@@ -34,28 +37,53 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
-export function SidebarBrand() {
+export function SidebarBrand({ collapsed }: { collapsed?: boolean }) {
   return (
-    <Link href="/dashboard" className="flex items-center gap-2 px-5 py-4">
-      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-        <Building2 className="h-4 w-4" />
-      </div>
-      <div className="leading-tight">
-        <div className="text-sm font-semibold">TDK Tracker</div>
-        <div className="text-[11px] text-muted-foreground">TDK · M&amp;P Engineering</div>
-      </div>
+    <Link href="/dashboard" className={cn('flex items-center py-4', collapsed ? 'justify-center px-2' : 'px-5')}>
+      {collapsed ? (
+        <LogoIcon size={36} priority />
+      ) : (
+        <span className="flex flex-col">
+          <Logo height={30} priority />
+          <span className="mt-1 text-[11px] text-muted-foreground">Project Tracker</span>
+        </span>
+      )}
+      <span className="sr-only">TDK Project Tracker — dashboard</span>
     </Link>
   );
 }
 
-export function Sidebar() {
+export function Sidebar({ collapsed = false, onToggle }: { collapsed?: boolean; onToggle?: () => void }) {
   return (
-    <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r bg-card md:flex">
-      <SidebarBrand />
-      <div className="flex-1 overflow-y-auto scrollbar-thin">
-        <SidebarNav />
+    <aside
+      className={cn(
+        'fixed inset-y-0 left-0 z-30 hidden flex-col border-r bg-card transition-[width] duration-200 md:flex',
+        collapsed ? 'w-16' : 'w-60',
+      )}
+    >
+      <SidebarBrand collapsed={collapsed} />
+      <div className="flex-1 overflow-x-hidden overflow-y-auto scrollbar-thin">
+        <SidebarNav collapsed={collapsed} />
       </div>
-      <div className="border-t px-5 py-3 text-[11px] text-muted-foreground">v1.0 · Production</div>
+      <div className={cn('border-t p-2', collapsed && 'flex justify-center')}>
+        <button
+          onClick={onToggle}
+          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          className={cn(
+            'flex items-center rounded-md text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
+            collapsed ? 'h-9 w-9 justify-center' : 'w-full gap-2 px-3 py-2',
+          )}
+        >
+          {collapsed ? (
+            <PanelLeftOpen className="h-4 w-4" />
+          ) : (
+            <>
+              <PanelLeftClose className="h-4 w-4" /> Collapse
+            </>
+          )}
+        </button>
+      </div>
     </aside>
   );
 }

@@ -3,23 +3,24 @@ import {
   FileText,
   CalendarClock,
   CircleDot,
+  CircleCheckBig,
   FolderKanban,
 } from 'lucide-react';
 import { MetaBadge } from '@/components/shared/meta-badge';
+import { PriorityBadge } from '@/components/shared/priority-badge';
 import { EmptyState } from '@/components/shared/empty-state';
 import {
-  TASK_PRIORITY,
   SUBMITTAL_STATUS,
-  PROJECT_STATUS,
   WORKFLOW_STATE,
   PROJECT_PHASE,
 } from '@/lib/constants';
-import { describeDue, formatDate, formatRelative, cn, humanize } from '@/lib/utils';
+import { describeDue, formatDate, formatTime, formatRelative, cn, humanize } from '@/lib/utils';
 import type {
   TaskWithProject,
   SubmittalWithProject,
   ProjectListItem,
   ActivityItem,
+  CompletedTaskItem,
 } from '@/lib/types';
 import type { CalendarFeedRow, FollowUpNeededRow } from '@/types/database.types';
 import { FOLLOW_UP_REASON_LABEL } from '@/lib/constants';
@@ -46,8 +47,33 @@ export function TaskRow({ task }: { task: TaskWithProject }) {
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        <MetaBadge meta={TASK_PRIORITY[task.priority]} />
+        <PriorityBadge priority={task.priority} />
         <span className={cn('whitespace-nowrap text-xs', dueToneClass[due.tone])}>{due.label}</span>
+      </div>
+    </Link>
+  );
+}
+
+export function CompletedTaskRow({ task }: { task: CompletedTaskItem }) {
+  const by = task.assignees.map((a) => a.staff?.full_name).filter(Boolean).join(', ');
+  return (
+    <Link
+      href={task.project ? `/projects/${task.project.id}?tab=tasks` : '#'}
+      className="flex items-center justify-between gap-3 rounded-md px-2 py-2 hover:bg-accent"
+    >
+      <div className="flex min-w-0 items-center gap-2">
+        <CircleCheckBig className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+        <div className="min-w-0">
+          <div className="truncate text-sm font-medium">{task.name}</div>
+          <div className="truncate text-xs text-muted-foreground">
+            {task.project ? `${task.project.project_number} · ${task.project.name}` : '—'}
+            {by ? ` · ${by}` : ''}
+          </div>
+        </div>
+      </div>
+      <div className="shrink-0 whitespace-nowrap text-right text-xs text-muted-foreground">
+        <div>{formatDate(task.completed_at)}</div>
+        <div>{formatTime(task.completed_at)}</div>
       </div>
     </Link>
   );

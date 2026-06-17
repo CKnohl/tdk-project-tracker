@@ -1,19 +1,27 @@
-import Link from 'next/link';
-import {
-  AlertTriangle,
-  CalendarClock,
-  ListChecks,
-  FileWarning,
-  FolderKanban,
-} from 'lucide-react';
+import { AlertTriangle, CalendarClock, FileWarning, FolderKanban, ListChecks } from 'lucide-react';
 import { PageHeader } from '@/components/shared/page-header';
-import { WidgetCard } from '@/components/dashboard/widget-card';
-import { TaskRow, SubmittalRowItem, ProjectRowItem, WidgetList } from '@/components/dashboard/rows';
 import { EmptyState } from '@/components/shared/empty-state';
+import { Card } from '@/components/ui/card';
+import { MyWorkTabs } from '@/components/dashboard/my-work-tabs';
 import { getCurrentUser } from '@/lib/auth';
 import { getMyWork } from '@/lib/data/my-work';
+import { cn } from '@/lib/utils';
 
 export const metadata = { title: 'My Work' };
+
+function Stat({ label, value, icon: Icon, tone }: { label: string; value: number; icon: React.ComponentType<{ className?: string }>; tone: string }) {
+  return (
+    <Card className="card-hover flex items-center gap-3 p-3">
+      <div className={cn('flex h-9 w-9 items-center justify-center rounded-lg', tone)}>
+        <Icon className="h-4 w-4" />
+      </div>
+      <div>
+        <div className="text-xl font-semibold tabular-nums">{value}</div>
+        <div className="text-xs text-muted-foreground">{label}</div>
+      </div>
+    </Card>
+  );
+}
 
 export default async function MyWorkPage() {
   const user = await getCurrentUser();
@@ -33,37 +41,17 @@ export default async function MyWorkPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="My Work"
-        description={`${data.tasks.length} open tasks · ${data.overdue.length} overdue · ${data.submittals.length} submittals · ${data.projects.length} projects`}
-      />
+    <div className="space-y-5">
+      <PageHeader title="My Work" description="Everything assigned to you, in one place." />
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <WidgetCard title="Overdue" icon={AlertTriangle} count={data.overdue.length}>
-          <WidgetList items={data.overdue} emptyTitle="Nothing overdue 🎉" emptyIcon={AlertTriangle} render={(t) => <TaskRow key={t.id} task={t} />} />
-        </WidgetCard>
-        <WidgetCard title="Upcoming (≤14 days)" icon={CalendarClock} count={data.upcoming.length}>
-          <WidgetList items={data.upcoming} emptyTitle="Nothing due soon" emptyIcon={CalendarClock} render={(t) => <TaskRow key={t.id} task={t} />} />
-        </WidgetCard>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <Stat label="Open tasks" value={data.tasks.length} icon={ListChecks} tone="bg-primary/10 text-primary" />
+        <Stat label="Overdue" value={data.overdue.length} icon={AlertTriangle} tone="bg-red-50 text-red-600 dark:bg-red-950" />
+        <Stat label="Submittals" value={data.submittals.length} icon={FileWarning} tone="bg-violet-50 text-violet-600 dark:bg-violet-950" />
+        <Stat label="Projects" value={data.projects.length} icon={CalendarClock} tone="bg-sky-50 text-sky-600 dark:bg-sky-950" />
       </div>
 
-      <WidgetCard title="All My Tasks" icon={ListChecks} count={data.tasks.length}>
-        <WidgetList items={data.tasks} emptyTitle="No assigned tasks" emptyIcon={ListChecks} render={(t) => <TaskRow key={t.id} task={t} />} />
-      </WidgetCard>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <WidgetCard title="Submittals Awaiting My Follow-Up" icon={FileWarning} count={data.submittals.length}>
-          <WidgetList items={data.submittals} emptyTitle="No submittals assigned to you" emptyIcon={FileWarning} render={(s) => <SubmittalRowItem key={s.id} submittal={s} />} />
-        </WidgetCard>
-        <WidgetCard title="My Projects" icon={FolderKanban} count={data.projects.length} href="/projects">
-          <WidgetList items={data.projects} emptyTitle="You're not assigned to any active projects" emptyIcon={FolderKanban} render={(p) => <ProjectRowItem key={p.id} project={p} />} />
-        </WidgetCard>
-      </div>
-
-      <p className="text-center text-xs text-muted-foreground">
-        Looking for something specific? <Link href="/projects" className="underline">Browse all projects</Link>.
-      </p>
+      <MyWorkTabs data={data} />
     </div>
   );
 }

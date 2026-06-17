@@ -4,6 +4,7 @@ import type {
   TaskWithProject,
   ProjectListItem,
   ActivityItem,
+  CompletedTaskItem,
 } from '@/lib/types';
 import type {
   StaffWorkloadRow,
@@ -17,6 +18,8 @@ const PROJECT_SELECT =
   'id,project_number,name,company_id,status,phase,workflow_state,workflow_state_since,target_completion_date,last_activity_at,description,scope,project_manager_id,inactive_reason,created_by,created_at,updated_at,company:companies(id,key,name,color),manager:staff!projects_project_manager_id_fkey(id,full_name,initials)';
 const TASK_SELECT =
   'id,project_id,name,description,priority,status,due_date,completion_pct,notes,created_by,completed_at,created_at,updated_at,project:projects(id,project_number,name)';
+const COMPLETED_SELECT =
+  'id,project_id,name,description,priority,status,due_date,completion_pct,notes,created_by,completed_at,created_at,updated_at,project:projects(id,project_number,name),assignees:task_staff(staff:staff(id,full_name,initials))';
 
 export interface DashboardData {
   counts: { active: number; on_hold: number; inactive: number; awaiting: number };
@@ -29,6 +32,7 @@ export interface DashboardData {
   workload: StaffWorkloadRow[];
   activity: ActivityItem[];
   upcoming: CalendarFeedRow[];
+  recentlyCompleted: CompletedTaskItem[];
 }
 
 export async function getDashboardData(): Promise<DashboardData> {
@@ -55,6 +59,7 @@ export async function getDashboardData(): Promise<DashboardData> {
     workload,
     activity,
     upcoming,
+    recentlyCompleted,
   ] = await Promise.all([
     countBy('active'),
     countBy('on_hold'),
@@ -122,6 +127,14 @@ export async function getDashboardData(): Promise<DashboardData> {
       .order('start_at', { ascending: true })
       .limit(10)
       .returns<CalendarFeedRow[]>(),
+    supabase
+      .from('tasks')
+      .select(COMPLETED_SELECT)
+      .eq('status', 'completed')
+      .not('completed_at', 'is', null)
+      .order('completed_at', { ascending: false })
+      .limit(8)
+      .returns<CompletedTaskItem[]>(),
   ]);
 
  
@@ -141,5 +154,6 @@ return {
   workload: workload.data ?? [],
   activity: activity.data ?? [],
   upcoming: upcoming.data ?? [],
+  recentlyCompleted: recentlyCompleted.data ?? [],
 };
 }

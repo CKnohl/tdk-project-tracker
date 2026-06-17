@@ -184,8 +184,12 @@ export function ProjectForm({
         <MultiSelect options={staffOptions} selected={form.staff_ids} onChange={(v) => set('staff_ids', v)} placeholder="Assign team members" />
       </Field>
 
-      <Field label="Description / Scope" error={errors.description}>
-        <Textarea value={form.description} onChange={(e) => set('description', e.target.value)} rows={3} placeholder="Brief description or scope notes…" />
+      <Field label="Description" error={errors.description}>
+        <Textarea value={form.description} onChange={(e) => set('description', e.target.value)} rows={3} placeholder="Brief project description…" />
+      </Field>
+
+      <Field label="Scope" error={errors.scope}>
+        <Textarea value={form.scope} onChange={(e) => set('scope', e.target.value)} rows={3} placeholder="Scope of work / services…" />
       </Field>
 
       <div className="flex justify-end gap-2">

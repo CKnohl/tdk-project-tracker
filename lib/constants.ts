@@ -25,9 +25,9 @@ export const PROJECT_STATUS: Record<ProjectStatus, Meta<ProjectStatus>> = {
 
 export const WORKFLOW_STATE: Record<WorkflowState, Meta<WorkflowState>> = {
   normal: { value: 'normal', label: 'Normal', tone: 'slate' },
-  awaiting_response: { value: 'awaiting_response', label: 'Awaiting Response', tone: 'blue' },
-  needs_follow_up: { value: 'needs_follow_up', label: 'Needs Follow-Up', tone: 'orange' },
-  urgent_follow_up: { value: 'urgent_follow_up', label: 'Urgent Follow-Up', tone: 'red' },
+  awaiting_response: { value: 'awaiting_response', label: 'Waiting on Others', tone: 'blue' },
+  needs_follow_up: { value: 'needs_follow_up', label: 'Needs Attention', tone: 'orange' },
+  urgent_follow_up: { value: 'urgent_follow_up', label: 'Urgent Attention', tone: 'red' },
 };
 
 export const PROJECT_PHASE: Record<ProjectPhase, Meta<ProjectPhase>> = {
@@ -103,8 +103,8 @@ export const ALLOWED_DOMAINS = ['tdkengineering.com', 'mpengineers.com'] as cons
 
 export const FOLLOW_UP_REASON_LABEL: Record<string, string> = {
   urgent_follow_up: 'Marked urgent',
-  needs_follow_up: 'Marked needs follow-up',
-  awaiting_over_14d: 'Awaiting response > 14 days',
+  needs_follow_up: 'Marked needs attention',
+  awaiting_over_14d: 'Waiting on others > 14 days',
   no_activity_14d: 'No activity in 14+ days',
   no_follow_up_date: 'No follow-up date set',
 };

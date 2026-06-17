@@ -3,12 +3,29 @@ import { ArrowRight, type LucideIcon } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 
+type Accent = 'red' | 'orange' | 'none';
+
+const ACCENT: Record<Accent, { card: string; icon: string; count: string }> = {
+  red: {
+    card: 'border-red-200 dark:border-red-900/70',
+    icon: 'text-red-600 dark:text-red-400',
+    count: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300',
+  },
+  orange: {
+    card: 'border-orange-200 dark:border-orange-900/70',
+    icon: 'text-orange-600 dark:text-orange-400',
+    count: 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300',
+  },
+  none: { card: '', icon: 'text-muted-foreground', count: 'bg-muted text-muted-foreground' },
+};
+
 export function WidgetCard({
   title,
   icon: Icon,
   count,
   href,
   viewAllLabel = 'View all',
+  accent = 'none',
   className,
   children,
 }: {
@@ -17,19 +34,19 @@ export function WidgetCard({
   count?: number;
   href?: string;
   viewAllLabel?: string;
+  accent?: Accent;
   className?: string;
   children: React.ReactNode;
 }) {
+  const a = ACCENT[accent];
   return (
-    <Card className={cn('flex flex-col', className)}>
+    <Card className={cn('card-hover flex flex-col', a.card, className)}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 pb-2">
         <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-          {Icon && <Icon className="h-4 w-4 text-muted-foreground" />}
+          {Icon && <Icon className={cn('h-4 w-4', a.icon)} />}
           {title}
           {typeof count === 'number' && (
-            <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-              {count}
-            </span>
+            <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', a.count)}>{count}</span>
           )}
         </CardTitle>
         {href && (

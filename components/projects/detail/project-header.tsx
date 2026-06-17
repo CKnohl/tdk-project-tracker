@@ -17,8 +17,9 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { MetaBadge } from '@/components/shared/meta-badge';
+import { ProjectStatusBadge } from '@/components/shared/status-indicator';
 import { ProjectForm } from '@/components/projects/project-form';
-import { PROJECT_STATUS, WORKFLOW_STATE, PROJECT_PHASE, PHASE_ORDER } from '@/lib/constants';
+import { WORKFLOW_STATE, PROJECT_PHASE, PHASE_ORDER } from '@/lib/constants';
 import {
   setProjectPhase,
   setWorkflowState,
@@ -78,7 +79,7 @@ export function ProjectHeader({
           </div>
           <h1 className="truncate text-2xl font-semibold tracking-tight">{project.name}</h1>
           <div className="mt-1 flex flex-wrap items-center gap-1.5">
-            <MetaBadge meta={PROJECT_STATUS[project.status]} />
+            <ProjectStatusBadge status={project.status} />
             {project.workflow_state !== 'normal' && <MetaBadge meta={WORKFLOW_STATE[project.workflow_state]} />}
             <MetaBadge meta={PROJECT_PHASE[project.phase]} />
           </div>

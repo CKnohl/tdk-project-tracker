@@ -9,10 +9,16 @@ Work top to bottom. Nothing here is automated — each step needs your accounts/
 - [ ] `supabase link --project-ref <ref>`.
 
 ## 2. Apply schema + seed
-- [ ] `supabase db push` (applies migrations `0001`–`0016`).
+- [ ] `supabase db push` (applies migrations `0001`–`0017`).
+- [ ] **Critical — `0017_grants.sql` must be applied.** Without it the API roles (`anon`/`authenticated`/`service_role`) have no table privileges and every dashboard query returns Postgres `42501` (the "dashboard shows zeros" bug). Verify by querying as the app role, or just confirm `0017` is in `select * from supabase_migrations.schema_migrations`.
 - [ ] Confirm in the dashboard: 17 tables, 5 views, the `project-files` storage bucket, RLS enabled on every table.
 - [ ] Verify seed: `select count(*) from projects;` → **24**, `select count(*) from staff;` → **16**, `roles` → **4**, `companies` → **2**.
 - [ ] `npm run types:gen` to replace the hand-written `types/database.types.ts` with the generated one.
+
+## 2b. Branding assets (v0.2)
+- [ ] Logo lives at `public/brand/tdk-logo.png` (used in sidebar, mobile nav, login). Favicon is `app/icon.png`. To swap, replace both files (keep `app/icon.png` square-ish for a clean favicon).
+- [ ] No remote image domains required — the logo is served from `/public`. (`next.config.mjs` only allow-lists `*.supabase.co` for user avatars.)
+- [ ] No `localhost` is hardcoded: OAuth redirect uses `window.location.origin`; the auth callback uses the request origin; `metadataBase` falls back to localhost only when `NEXT_PUBLIC_SITE_URL` is unset — set it in production.
 
 ## 3. Microsoft (Azure AD) OAuth
 - [ ] Azure Portal → App registrations → New registration (multi-tenant or both directories).

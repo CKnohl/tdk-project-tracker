@@ -45,6 +45,11 @@ export interface TaskWithStaff extends TaskRow {
   assignees: { staff: StaffRef | null }[];
 }
 
+export interface CompletedTaskItem extends TaskRow {
+  project: ProjectRef | null;
+  assignees: { staff: StaffRef | null }[];
+}
+
 export interface SubmittalWithProject extends SubmittalRow {
   project: ProjectRef | null;
   assigned: StaffRef | null;

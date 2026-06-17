@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { Building2, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { Logo } from '@/components/shared/logo';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -40,10 +41,8 @@ export default function LoginPage() {
   return (
     <Card className="w-full max-w-md">
       <CardHeader className="items-center text-center">
-        <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-          <Building2 className="h-6 w-6" />
-        </div>
-        <CardTitle className="text-xl">TDK Project Tracker</CardTitle>
+        <Logo height={56} priority className="mb-3" />
+        <CardTitle className="text-xl">Project Tracker</CardTitle>
         <CardDescription>Engineering operations for TDK Engineering &amp; M&amp;P Engineers</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

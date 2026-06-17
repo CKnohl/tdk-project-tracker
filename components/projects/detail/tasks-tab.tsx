@@ -8,10 +8,11 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MetaBadge } from '@/components/shared/meta-badge';
+import { PriorityBadge } from '@/components/shared/priority-badge';
 import { StaffStack } from '@/components/shared/staff-avatar';
 import { EmptyState } from '@/components/shared/empty-state';
 import { TaskForm } from '../task-form';
-import { TASK_STATUS, TASK_PRIORITY } from '@/lib/constants';
+import { TASK_STATUS } from '@/lib/constants';
 import { describeDue, cn } from '@/lib/utils';
 import { setTaskStatus, deleteTask } from '@/lib/actions/tasks';
 import type { StaffOption } from '@/lib/data/reference';
@@ -84,7 +85,7 @@ export function TasksTab({
                     <span className={cn('truncate font-medium', task.status === 'completed' && 'text-muted-foreground line-through')}>
                       {task.name}
                     </span>
-                    <MetaBadge meta={TASK_PRIORITY[task.priority]} />
+                    <PriorityBadge priority={task.priority} />
                   </div>
                   <div className="mt-0.5 flex items-center gap-2 text-xs">
                     <span className={dueTone[due.tone]}>{due.label}</span>
