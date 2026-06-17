@@ -124,21 +124,22 @@ export async function getDashboardData(): Promise<DashboardData> {
       .returns<CalendarFeedRow[]>(),
   ]);
 
-  return {
-    counts: {
-      active: activeC.count ?? 0,
-      on_hold: holdC.count ?? 0,
-      inactive: inactiveC.count ?? 0,
-      awaiting: awaitingC.count ?? 0,
-    },
-    dueToday: dueToday.data ?? [],
-    dueThisWeek: dueThisWeek.data ?? [],
-    overdue: overdue.data ?? [],
-    awaitingProjects: awaitingProjects.data ?? [],
-    followUp: followUp.data ?? [],
-    recentProjects: recentProjects.data ?? [],
-    workload: workload.data ?? [],
-    activity: activity.data ?? [],
-    upcoming: upcoming.data ?? [],
-  };
+ 
+return {
+  counts: {
+  active: activeC.count ?? 0,
+  on_hold: holdC.count ?? 0,
+  inactive: inactiveC.count ?? 0,
+  awaiting: awaitingC.count ?? 0,
+},
+  dueToday: dueToday.data ?? [],
+  dueThisWeek: dueThisWeek.data ?? [],
+  overdue: overdue.data ?? [],
+  awaitingProjects: awaitingProjects.data ?? [],
+  followUp: followUp.data ?? [],
+  recentProjects: recentProjects.data ?? [],
+  workload: workload.data ?? [],
+  activity: activity.data ?? [],
+  upcoming: upcoming.data ?? [],
+};
 }
