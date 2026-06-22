@@ -96,6 +96,7 @@ export async function getDashboardData(): Promise<DashboardData> {
     supabase
       .from('v_follow_up_needed')
       .select('*')
+      .eq('reason', 'needs_follow_up')
       .order('last_activity_at', { ascending: true })
       .limit(10)
       .returns<FollowUpNeededRow[]>(),
