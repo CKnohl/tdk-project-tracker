@@ -1,5 +1,6 @@
 import { cache } from 'react';
 import { createClient } from '@/lib/supabase/server';
+import type { ProjectStatus } from '@/types/database.types';
 
 export interface CompanyOption {
   id: number;
@@ -14,6 +15,12 @@ export interface StaffOption {
   email: string | null;
   is_active: boolean;
 }
+export interface ProjectOption {
+  id: string;
+  project_number: string;
+  name: string;
+  status: ProjectStatus;
+}
 
 export const getCompanies = cache(async (): Promise<CompanyOption[]> => {
   const supabase = await createClient();
@@ -27,5 +34,16 @@ export const getStaffDirectory = cache(async (): Promise<StaffOption[]> => {
     .from('staff')
     .select('id, full_name, initials, email, is_active')
     .order('full_name');
+  return data ?? [];
+});
+
+// Active + on-hold projects, for assignment pickers on the staff workload center.
+export const getProjectDirectory = cache(async (): Promise<ProjectOption[]> => {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from('projects')
+    .select('id, project_number, name, status')
+    .in('status', ['active', 'on_hold'])
+    .order('project_number');
   return data ?? [];
 });

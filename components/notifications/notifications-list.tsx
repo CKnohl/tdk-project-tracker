@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
   Bell, AlertTriangle, Clock, FolderPlus, CheckCheck, Trash2, FileWarning, RefreshCw,
+  CircleCheckBig, CalendarClock,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -23,6 +24,8 @@ const ICONS: Record<NotificationType, React.ComponentType<{ className?: string }
   task_assigned: Bell,
   project_updated: RefreshCw,
   follow_up_due: Clock,
+  task_completed: CircleCheckBig,
+  deadline_changed: CalendarClock,
 };
 
 const TYPE_LABEL: Record<NotificationType, string> = {
@@ -33,6 +36,8 @@ const TYPE_LABEL: Record<NotificationType, string> = {
   task_assigned: 'Task assigned',
   project_updated: 'Project updated',
   follow_up_due: 'Needs attention',
+  task_completed: 'Task completed',
+  deadline_changed: 'Deadline changed',
 };
 
 const ALL = '__all__';

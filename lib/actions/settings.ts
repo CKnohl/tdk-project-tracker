@@ -22,6 +22,31 @@ export async function updateProfile(fullName: string): Promise<ActionResult> {
   }
 }
 
+export interface NotificationPrefsInput {
+  email_enabled: boolean;
+  inapp_enabled: boolean;
+  email_task_assigned: boolean;
+  email_task_completed: boolean;
+  email_project_assigned: boolean;
+  email_deadline_changed: boolean;
+}
+
+export async function updateNotificationPreferences(input: NotificationPrefsInput): Promise<ActionResult> {
+  try {
+    const user = await getCurrentUser();
+    if (!user) return fail('Not signed in');
+    const supabase = await createClient();
+    const { error } = await supabase
+      .from('notification_preferences')
+      .upsert({ user_id: user.id, ...input }, { onConflict: 'user_id' });
+    if (error) return fail(error.message);
+    revalidatePath('/settings/profile');
+    return { ok: true };
+  } catch (e) {
+    return fail(errMessage(e));
+  }
+}
+
 export async function setUserRole(userId: string, roleKey: RoleKey): Promise<ActionResult> {
   try {
     await requireAdmin();

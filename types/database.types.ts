@@ -20,7 +20,8 @@ export type SubmittalStatus =
   | 'revision_required' | 'approved' | 'rejected';
 export type NotificationType =
   | 'task_due_tomorrow' | 'task_overdue' | 'submittal_awaiting_too_long'
-  | 'project_assigned' | 'task_assigned' | 'project_updated' | 'follow_up_due';
+  | 'project_assigned' | 'task_assigned' | 'project_updated' | 'follow_up_due'
+  | 'task_completed' | 'deadline_changed';
 export type ActivityEntity = 'project' | 'task' | 'submittal' | 'file' | 'note' | 'contact' | 'status';
 export type ActivityAction =
   | 'created' | 'updated' | 'deleted' | 'status_changed'
@@ -90,6 +91,20 @@ export type CalendarEventRow = Timestamps & {
   task_id: string | null; submittal_id: string | null; created_by: string | null;
 };
 export type SettingRow = { id: string; scope: string; user_id: string | null; key: string; value: Json; updated_at: string };
+export type NotificationPreferenceRow = Timestamps & {
+  user_id: string;
+  email_enabled: boolean;
+  inapp_enabled: boolean;
+  email_task_assigned: boolean;
+  email_task_completed: boolean;
+  email_project_assigned: boolean;
+  email_deadline_changed: boolean;
+};
+export type ReportRunRow = {
+  id: string; generated_by: string | null; generated_at: string;
+  report_type: string; pdf_path: string | null; summary: string | null;
+  snapshot: Json; created_at: string;
+};
 
 export type CalendarFeedRow = {
   feed_id: string; source: string; event_type: CalendarEventType; project_id: string | null;
@@ -127,6 +142,8 @@ export type Database = {
       activity_logs: TableDef<ActivityLogRow>;
       calendar_events: TableDef<CalendarEventRow>;
       settings: TableDef<SettingRow>;
+      notification_preferences: TableDef<NotificationPreferenceRow>;
+      report_runs: TableDef<ReportRunRow>;
     };
     Views: {
       v_calendar_feed: ViewDef<CalendarFeedRow>;

@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { projectSchema, type ProjectInput } from '@/lib/validators';
 import { requireEditor, requireManager, fail, errMessage, type ActionResult } from './_helpers';
-import { notifyProjectTeam } from '@/lib/notify';
+import { notifyProjectTeam, notifyProjectAssigned, notifyDeadlineChanged } from '@/lib/notify';
 import { WORKFLOW_STATE } from '@/lib/constants';
 import type { ProjectStatus, ProjectPhase, WorkflowState, InactiveReason } from '@/types/database.types';
 
@@ -40,6 +40,7 @@ export async function createProject(input: ProjectInput): Promise<ActionResult> 
       await supabase
         .from('project_staff')
         .insert(v.staff_ids.map((staff_id) => ({ project_id: data.id, staff_id })));
+      await notifyProjectAssigned({ projectId: data.id, projectName: v.name, staffIds: v.staff_ids, actorId: user.id });
     }
 
     revalidatePath('/projects');
@@ -57,6 +58,13 @@ export async function updateProject(id: string, input: ProjectInput): Promise<Ac
     if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? 'Invalid input');
     const v = parsed.data;
     const supabase = await createClient();
+
+    // Capture the prior target date so we can detect a deadline change.
+    const { data: prev } = await supabase
+      .from('projects')
+      .select('target_completion_date')
+      .eq('id', id)
+      .maybeSingle();
 
     const { error } = await supabase
       .from('projects')
@@ -77,6 +85,20 @@ export async function updateProject(id: string, input: ProjectInput): Promise<Ac
     if (error) return fail(error.message);
 
     await notifyProjectTeam({ projectId: id, type: 'project_updated', title: 'Project updated', excludeUserId: user.id });
+
+    const oldTarget = prev?.target_completion_date ?? null;
+    const newTarget = v.target_completion_date ?? null;
+    if (oldTarget !== newTarget) {
+      await notifyDeadlineChanged({
+        projectId: id,
+        scope: 'project',
+        entityId: id,
+        label: v.name,
+        oldDate: oldTarget,
+        newDate: newTarget,
+        actorId: user.id,
+      });
+    }
 
     revalidatePath(`/projects/${id}`);
     revalidatePath('/projects');
@@ -162,7 +184,7 @@ export async function deleteProject(id: string): Promise<ActionResult> {
 
 export async function setProjectStaff(projectId: string, staffIds: string[]): Promise<ActionResult> {
   try {
-    await requireEditor();
+    const user = await requireEditor();
     const supabase = await createClient();
     // Replace the assignment set.
     const { data: existing } = await supabase
@@ -176,6 +198,7 @@ export async function setProjectStaff(projectId: string, staffIds: string[]): Pr
 
     if (toAdd.length > 0) {
       await supabase.from('project_staff').insert(toAdd.map((staff_id) => ({ project_id: projectId, staff_id })));
+      await notifyProjectAssigned({ projectId, staffIds: toAdd, actorId: user.id });
     }
     if (toRemove.length > 0) {
       await supabase.from('project_staff').delete().eq('project_id', projectId).in('staff_id', toRemove);

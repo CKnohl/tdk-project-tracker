@@ -11,7 +11,9 @@ import {
   WidgetList,
 } from '@/components/dashboard/rows';
 import { getCurrentUser } from '@/lib/auth';
+import { canManageProjects } from '@/lib/permissions';
 import { getDashboardData } from '@/lib/data/dashboard';
+import { GenerateReportButton } from '@/components/reports/generate-report-button';
 
 export const metadata = { title: 'Dashboard' };
 
@@ -20,10 +22,13 @@ export default async function DashboardPage() {
   const data = await getDashboardData();
 
   const firstName = user?.full_name?.split(' ')[0] ?? 'there';
+  const canReport = canManageProjects(user?.role);
 
   return (
     <div className="space-y-6">
-      <PageHeader title={`Welcome back, ${firstName}`} description="What needs attention today across TDK & M&P." />
+      <PageHeader title={`Welcome back, ${firstName}`} description="What needs attention today across TDK & M&P.">
+        {canReport && <GenerateReportButton />}
+      </PageHeader>
 
       {/* Top KPI row */}
       <StatCards counts={data.counts} />
