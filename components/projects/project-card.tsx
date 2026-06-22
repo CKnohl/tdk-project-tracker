@@ -3,15 +3,23 @@ import { CalendarClock, ListChecks, AlertTriangle, User } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { MetaBadge } from '@/components/shared/meta-badge';
 import { ProjectStatusBadge } from '@/components/shared/status-indicator';
+import { StatusRail, LivePill } from '@/components/shared/status-rail';
+import { projectRailState } from '@/lib/status-rail';
 import { PROJECT_PHASE, WORKFLOW_STATE } from '@/lib/constants';
 import { formatDate, describeDue, formatCompanyTag, cn } from '@/lib/utils';
 import type { ProjectCard as ProjectCardType } from '@/lib/data/projects';
 
 export function ProjectCard({ project }: { project: ProjectCardType }) {
   const due = describeDue(project.stats?.next_due_date);
+  const rail = projectRailState({
+    status: project.status,
+    workflow_state: project.workflow_state,
+    overdueTasks: project.stats?.overdue_tasks,
+  });
   return (
     <Link href={`/projects/${project.id}`}>
-      <Card className="card-hover flex h-full flex-col gap-3 p-4 hover:border-primary/40">
+      <Card className="card-hover relative flex h-full flex-col gap-3 p-4 pl-5 hover:border-primary/40">
+        <StatusRail state={rail} />
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
@@ -27,7 +35,7 @@ export function ProjectCard({ project }: { project: ProjectCardType }) {
             </div>
             <h3 className="mt-0.5 truncate font-semibold">{project.name}</h3>
           </div>
-          <ProjectStatusBadge status={project.status} />
+          {project.status === 'active' ? <LivePill /> : <ProjectStatusBadge status={project.status} />}
         </div>
 
         <div className="flex flex-wrap gap-1.5">

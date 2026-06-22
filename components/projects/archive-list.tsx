@@ -8,6 +8,7 @@ import { RotateCcw } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { StatusRail } from '@/components/shared/status-rail';
 import { humanize, formatDate } from '@/lib/utils';
 import { setProjectStatus } from '@/lib/actions/projects';
 import type { ProjectCard } from '@/lib/data/projects';
@@ -27,7 +28,8 @@ export function ArchiveList({ projects, canEdit }: { projects: ProjectCard[]; ca
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {projects.map((p) => (
-        <Card key={p.id} className="flex h-full flex-col gap-2 p-4">
+        <Card key={p.id} className="card-hover relative flex h-full flex-col gap-2 p-4 pl-5">
+          <StatusRail state="inactive" />
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
               <span className="font-mono text-xs text-muted-foreground">{p.project_number}</span>

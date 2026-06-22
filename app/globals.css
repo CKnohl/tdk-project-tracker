@@ -103,10 +103,23 @@
   50% { box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.12); }
 }
 
+@keyframes rail-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@layer utilities {
+  /* Overdue rails pulse; active rails breathe slowly. */
+  .animate-rail-pulse { animation: rail-pulse 1.8s ease-in-out infinite; }
+  .animate-rail-breathe { animation: rail-pulse 3.2s ease-in-out infinite; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-breathe,
   .animate-ping,
   .animate-soft-pulse,
+  .animate-rail-pulse,
+  .animate-rail-breathe,
   .card-hover {
     animation: none !important;
     transition: none !important;

@@ -39,13 +39,16 @@ export function SidebarNav({ collapsed, onNavigate }: { collapsed?: boolean; onN
 
 export function SidebarBrand({ collapsed }: { collapsed?: boolean }) {
   return (
-    <Link href="/dashboard" className={cn('flex items-center py-4', collapsed ? 'justify-center px-2' : 'px-5')}>
+    <Link
+      href="/dashboard"
+      className={cn('flex w-full items-center justify-center py-3', collapsed ? 'px-2' : 'px-3')}
+    >
       {collapsed ? (
         <LogoIcon size={36} priority />
       ) : (
-        <span className="flex flex-col">
-          <Logo height={30} priority />
-          <span className="mt-1 text-[11px] text-muted-foreground">Project Tracker</span>
+        // White plate keeps the official (white-background) logo crisp in both themes.
+        <span className="flex w-[88%] items-center justify-center rounded-lg bg-white p-2 shadow-sm ring-1 ring-black/5">
+          <Logo priority className="h-auto w-full" />
         </span>
       )}
       <span className="sr-only">TDK Project Tracker — dashboard</span>

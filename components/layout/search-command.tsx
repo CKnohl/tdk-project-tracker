@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { Search, CornerDownLeft, FolderKanban } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { StatusRail } from '@/components/shared/status-rail';
+import { projectRailState } from '@/lib/status-rail';
 import { createClient } from '@/lib/supabase/client';
 import { PROJECT_STATUS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
@@ -99,8 +101,9 @@ export function SearchCommand() {
                 key={h.id}
                 onClick={() => go(h)}
                 onMouseEnter={() => setActive(i)}
-                className={cn('flex w-full items-center justify-between gap-2 rounded-md px-2 py-2 text-left text-sm', i === active && 'bg-accent')}
+                className={cn('relative flex w-full items-center justify-between gap-2 rounded-md py-2 pl-4 pr-2 text-left text-sm', i === active && 'bg-accent')}
               >
+                <StatusRail state={projectRailState({ status: h.status })} radius="rounded-full" glow={false} className="left-1 top-1.5 h-[calc(100%-0.75rem)] w-1" />
                 <span className="flex min-w-0 items-center gap-2">
                   <FolderKanban className="h-4 w-4 shrink-0 text-muted-foreground" />
                   <span className="min-w-0">

@@ -41,7 +41,7 @@ export default function LoginPage() {
   return (
     <Card className="w-full max-w-md">
       <CardHeader className="items-center text-center">
-        <Logo height={56} priority className="mb-3" />
+        <Logo priority className="mb-3 h-14 w-auto" />
         <CardTitle className="text-xl">Project Tracker</CardTitle>
         <CardDescription>Engineering operations for TDK Engineering &amp; M&amp;P Engineers</CardDescription>
       </CardHeader>

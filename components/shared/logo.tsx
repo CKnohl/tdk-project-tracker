@@ -1,28 +1,21 @@
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 
-// Intrinsic logo dimensions (public/brand/tdk-logo.png).
-const RATIO = 440 / 252;
+// Intrinsic dimensions of public/brand/tdk-logo.png. Swapping in a higher-res
+// master at the same path needs no code change (size is driven by className).
+const LOGO_W = 700;
+const LOGO_H = 350;
 
-/** Full TDK Engineering Associates wordmark. Height-driven; width auto-derived. */
-export function Logo({
-  height = 28,
-  priority = false,
-  className,
-}: {
-  height?: number;
-  priority?: boolean;
-  className?: string;
-}) {
+/** Full TDK Engineering Associates wordmark. Size via className (e.g. w-full, h-14). */
+export function Logo({ className, priority = false }: { className?: string; priority?: boolean }) {
   return (
     <Image
       src="/brand/tdk-logo.png"
       alt="TDK Engineering Associates, PC"
-      width={Math.round(RATIO * height)}
-      height={height}
+      width={LOGO_W}
+      height={LOGO_H}
       priority={priority}
-      className={cn('w-auto select-none', className)}
-      style={{ height }}
+      className={cn('select-none', className)}
     />
   );
 }

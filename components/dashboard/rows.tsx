@@ -8,6 +8,8 @@ import {
 } from 'lucide-react';
 import { MetaBadge } from '@/components/shared/meta-badge';
 import { PriorityBadge } from '@/components/shared/priority-badge';
+import { StatusRail } from '@/components/shared/status-rail';
+import { projectRailState } from '@/lib/status-rail';
 import { EmptyState } from '@/components/shared/empty-state';
 import {
   SUBMITTAL_STATUS,
@@ -98,11 +100,13 @@ export function SubmittalRowItem({ submittal }: { submittal: SubmittalWithProjec
 }
 
 export function ProjectRowItem({ project }: { project: ProjectListItem }) {
+  const rail = projectRailState({ status: project.status, workflow_state: project.workflow_state });
   return (
     <Link
       href={`/projects/${project.id}`}
-      className="flex items-center justify-between gap-3 rounded-md px-2 py-2 hover:bg-accent"
+      className="relative flex items-center justify-between gap-3 rounded-md py-2 pl-4 pr-2 hover:bg-accent"
     >
+      <StatusRail state={rail} radius="rounded-full" glow={false} className="left-1 top-1 h-[calc(100%-0.5rem)] w-1" />
       <div className="min-w-0">
         <div className="truncate text-sm font-medium">{project.name}</div>
         <div className="truncate text-xs text-muted-foreground">
