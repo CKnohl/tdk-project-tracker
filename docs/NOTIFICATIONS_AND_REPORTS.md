@@ -93,18 +93,47 @@ Server actions live in `lib/actions/workload.ts`; read model in `getStaffWorkloa
 
 ---
 
+## 4. Email delivery, automated daily reports, AI summary & PDF storage
+
+### Email (Resend) — setup
+1. Create an account at [resend.com](https://resend.com) and add + verify your sending domain (SPF/DKIM DNS records).
+2. Create an API key.
+3. Set `RESEND_API_KEY` and `RESEND_FROM` (an address on the verified domain) in Vercel + `.env.local`.
+4. Confirm `NEXT_PUBLIC_SITE_URL` is the production URL (used for email links).
+
+The reusable service is [lib/email.ts](../lib/email.ts) (`sendEmail`, now with optional `attachments`). The four event emails (`task_assigned`, `task_completed`, `project_assigned`, `deadline_changed`) are already wired through [lib/notify.ts](../lib/notify.ts) and respect `notification_preferences`. If `RESEND_API_KEY` is unset, email is skipped and in-app notifications are unaffected.
+
+### Automated daily Ready Report
+- Route: [app/api/cron/daily-report/route.ts](../app/api/cron/daily-report/route.ts), Node runtime, guarded by `CRON_SECRET`.
+- Schedule: [vercel.json](../vercel.json) → `0 12 * * 1-5` (weekday mornings, ~7–8am ET).
+- It calls the shared orchestrator `runReadyReport()` ([lib/reports/run.ts](../lib/reports/run.ts)) with the **service-role client**, which reuses `gatherReadyReport()` verbatim (no duplicated report logic), then emails **active Admins + Project Managers** a link plus the **PDF attached**.
+- The daily run is stored with `report_type = 'daily_digest'`; manual runs use `'ready_report'`. "Previous report" is the most recent run of *any* type, so manual + daily chain together.
+
+### AI Executive Summary (OpenAI)
+- [lib/ai.ts](../lib/ai.ts) `generateExecutiveSummary(snapshot)` calls the OpenAI Chat Completions API (`OPENAI_API_KEY`, default model `gpt-4o-mini`) via `fetch`.
+- Highlights overdue work, workload issues, waiting projects, and changes since the previous report.
+- **Graceful fallback:** if the key is missing or the call fails, the report uses the existing deterministic summary. The AI text flows through `snapshot.executive_summary`, so the web report and PDF render it with no extra fields.
+
+### PDF → Supabase Storage
+- [lib/reports/pdf.tsx](../lib/reports/pdf.tsx) renders the snapshot to a real PDF with `@react-pdf/renderer` (server-only, Node runtime — never imported by client code).
+- [lib/reports/storage.ts](../lib/reports/storage.ts) uploads it to the private `reports` bucket as `{report_id}.pdf` (service-role) and stores the path in `report_runs.pdf_path`. The id is generated up front so `pdf_path` is set in the same insert.
+- Both manual generation and the daily cron produce + store a PDF. The report page shows a **Download PDF** button (server-generated signed URL). PDF + AI are best-effort: a failure never blocks report creation.
+
+---
+
 ## Migration
 
-**This round adds no schema changes** — staff management, the new notification recipients (task creator / PM), and the report additions all build on existing tables, columns, and RLS. The only migration in the project remains:
-
-Apply `supabase/migrations/0018_notifications_email_reports.sql` (from the first feature round, if not already applied):
+This round adds **one** additive migration: a private Storage bucket for report PDFs (`report_runs.pdf_path` already existed from 0018, so no table change).
 
 ```bash
 supabase db push          # against the linked project
-# or paste the SQL into the Supabase SQL editor
+# or paste each SQL file into the Supabase SQL editor
 ```
 
-It (1) adds enum values `task_completed` + `deadline_changed`, (2) creates `notification_preferences`, (3) creates `report_runs`, (4) drops the two assignment triggers/functions, (5) grants table privileges.
+Migrations in play:
+- `0018_notifications_email_reports.sql` — enum values `task_completed`/`deadline_changed`, `notification_preferences`, `report_runs`, drops the old assignment triggers, grants. *(idempotent)*
+- `0019_default_role_read_only.sql` — new OAuth users default to **Read Only** (was Project Manager).
+- `0020_reports_storage.sql` — **new this round**: creates the private `reports` Storage bucket + a rank ≥ 30 read policy. *(idempotent)*
 
 ---
 
@@ -130,13 +159,21 @@ It (1) adds enum values `task_completed` + `deadline_changed`, (2) creates `noti
 - [ ] Staff Workload shows Open / Overdue / Due This Week / Active Projects; Workload Alerts flags high-load and overdue staff (empty state when none).
 - [ ] Print / Save as PDF produces a clean, sidebar-free document.
 - [ ] A Read-Only user navigating to `/reports/{id}` is redirected to the dashboard.
+- [ ] After generating, a **Download PDF** button appears and downloads the stored PDF.
+- [ ] With `OPENAI_API_KEY` set, the Executive Summary reads as AI prose; without it, the deterministic summary still renders.
+
+**Automated daily report / email / PDF**
+- [ ] `GET /api/cron/daily-report` with `Authorization: Bearer $CRON_SECRET` returns `{ id, recipients, emailed, pdf }`; without the header it returns 401.
+- [ ] A `report_runs` row with `report_type = 'daily_digest'` is created and has a non-null `pdf_path`.
+- [ ] Active Admins + PMs receive the email with the PDF attached and a working "View the full report" link.
+- [ ] The `reports` Storage bucket contains `{id}.pdf` and is **private** (no public URL).
 
 ---
 
 ## Deployment steps
 
-1. Run migration `0018` against production Supabase **if it isn't already applied** (the staff workload + notification-rule + report-additions round needs no new migration).
-2. In Vercel, add `RESEND_API_KEY` and `RESEND_FROM`; confirm `NEXT_PUBLIC_SITE_URL` is the production URL.
+1. Apply migrations to production Supabase (idempotent): `0018` (if not already), `0019` (role default), and **`0020` (reports bucket)**.
+2. In Vercel, set env vars: `RESEND_API_KEY`, `RESEND_FROM`, **`OPENAI_API_KEY`** (optional `OPENAI_MODEL`), `CRON_SECRET`; confirm `NEXT_PUBLIC_SITE_URL` is the production URL and `SUPABASE_SERVICE_ROLE_KEY` is set (used by the cron + PDF upload).
 3. Verify your sending domain in Resend (SPF/DKIM) so emails aren't spam-filtered.
-4. Deploy (push to `main`).
-5. Smoke-test using the checklist above.
+4. Deploy (push to `main`). Vercel registers the new `daily-report` cron from `vercel.json` (note: the Hobby plan allows ≤ once-per-day crons — both crons qualify).
+5. Smoke-test: trigger `/api/cron/daily-report` manually with the Bearer secret, then run the checklist above.

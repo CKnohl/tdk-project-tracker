@@ -10,11 +10,18 @@ const RESEND_ENDPOINT = 'https://api.resend.com/emails';
 
 const DEFAULT_FROM = 'TDK Project Tracker <notifications@tdkengineering.com>';
 
+export interface EmailAttachment {
+  filename: string;
+  /** Base64-encoded file content. */
+  content: string;
+}
+
 export interface EmailMessage {
   to: string | string[];
   subject: string;
   html: string;
   text?: string;
+  attachments?: EmailAttachment[];
 }
 
 /** Returns false (never throws) on any failure, including a missing API key. */
@@ -42,6 +49,7 @@ export async function sendEmail(msg: EmailMessage): Promise<boolean> {
         subject: msg.subject,
         html: msg.html,
         ...(msg.text ? { text: msg.text } : {}),
+        ...(msg.attachments?.length ? { attachments: msg.attachments } : {}),
       }),
       // Don't let a slow provider hang a server action indefinitely.
       signal: AbortSignal.timeout(10_000),

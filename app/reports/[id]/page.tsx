@@ -1,12 +1,13 @@
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Download } from 'lucide-react';
 import { getCurrentUser } from '@/lib/auth';
 import { canManageProjects } from '@/lib/permissions';
 import { createClient } from '@/lib/supabase/server';
 import { cn, formatDate, formatDateTime } from '@/lib/utils';
 import { PROJECT_STATUS, TASK_PRIORITY, WORKFLOW_STATE } from '@/lib/constants';
 import { PrintButton } from '@/components/reports/print-button';
+import { getReportPdfSignedUrl } from '@/lib/reports/storage';
 import type { ReportSnapshot } from '@/lib/data/reports';
 import type { Json } from '@/types/database.types';
 
@@ -16,6 +17,7 @@ interface ReportRow {
   report_type: string;
   summary: string | null;
   snapshot: Json;
+  pdf_path: string | null;
   generator: { full_name: string | null } | null;
 }
 
@@ -31,7 +33,7 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
   const supabase = await createClient();
   const { data: report } = await supabase
     .from('report_runs')
-    .select('id, generated_at, report_type, summary, snapshot, generator:users(full_name)')
+    .select('id, generated_at, report_type, summary, snapshot, pdf_path, generator:users(full_name)')
     .eq('id', id)
     .returns<ReportRow[]>()
     .maybeSingle();
@@ -40,6 +42,7 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
 
   const snap = report.snapshot as unknown as ReportSnapshot;
   const generatorName = report.generator?.full_name ?? 'Unknown';
+  const pdfUrl = report.pdf_path ? await getReportPdfSignedUrl(report.pdf_path) : null;
 
   return (
     <div className="min-h-screen bg-slate-100 py-8 text-slate-900 print:bg-white print:py-0">
@@ -54,7 +57,17 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
         <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-sm text-slate-600 hover:text-slate-900">
           <ArrowLeft className="h-4 w-4" /> Back to dashboard
         </Link>
-        <PrintButton />
+        <div className="flex items-center gap-2">
+          {pdfUrl && (
+            <a
+              href={pdfUrl}
+              className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              <Download className="h-4 w-4" /> Download PDF
+            </a>
+          )}
+          <PrintButton />
+        </div>
       </div>
 
       <article className="mx-auto max-w-3xl bg-white p-8 shadow-sm print:max-w-none print:p-0 print:shadow-none">
