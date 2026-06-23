@@ -8,7 +8,7 @@
 
 const RESEND_ENDPOINT = 'https://api.resend.com/emails';
 
-const DEFAULT_FROM = 'TDK Project Tracker <notifications@tdkengineering.com>';
+const DEFAULT_FROM = 'TDK Project Tracker <onboarding@resend.dev>';
 
 export interface EmailAttachment {
   filename: string;
