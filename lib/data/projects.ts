@@ -151,6 +151,12 @@ export async function getProjectDetail(id: string): Promise<ProjectDetail | null
       .returns<ProjectPhaseRow[]>(),
   ]);
 
+  // Surface query failures instead of silently rendering an empty tab. A task
+  // that belongs to this project must never be invisible here; if this logs,
+  // a required migration (e.g. the tasks.recurrence column from 0021) is missing.
+  if (tasks.error) console.error('[getProjectDetail] tasks query failed:', tasks.error.message);
+  if (submittals.error) console.error('[getProjectDetail] submittals query failed:', submittals.error.message);
+
   // Submittal status history (every change, with the responsible user).
   const submittalIds = (submittals.data ?? []).map((s) => s.id);
   const submittalHistory: Record<string, SubmittalHistoryItem[]> = {};

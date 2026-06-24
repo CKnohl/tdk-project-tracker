@@ -25,7 +25,7 @@ import type {
   CompletedTaskItem,
 } from '@/lib/types';
 import type { CalendarFeedRow, FollowUpNeededRow } from '@/types/database.types';
-import type { DueItem } from '@/lib/data/dashboard';
+import type { DueItem } from '@/lib/data/due-items';
 import { FOLLOW_UP_REASON_LABEL } from '@/lib/constants';
 
 const dueToneClass: Record<string, string> = {

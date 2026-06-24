@@ -37,13 +37,13 @@ export default async function DashboardPage() {
       <section>
         <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Priority focus</h2>
         <div className="grid gap-4 md:grid-cols-3">
-          <PriorityCard variant="overdue" title="Overdue" count={data.overdue.length} href="/my-work" emptyLabel="Nothing overdue">
+          <PriorityCard variant="overdue" title="Overdue" count={data.overdue.length} href="/due?filter=overdue" emptyLabel="Nothing overdue">
             <WidgetList items={data.overdue} max={7} emptyTitle="Nothing overdue" render={(i) => <DueItemRow key={`${i.kind}-${i.id}`} item={i} />} />
           </PriorityCard>
-          <PriorityCard variant="today" title="Due Today" count={data.dueToday.length} href="/my-work" emptyLabel="Nothing due today">
+          <PriorityCard variant="today" title="Due Today" count={data.dueToday.length} href="/due?filter=today" emptyLabel="Nothing due today">
             <WidgetList items={data.dueToday} max={7} emptyTitle="Nothing due today" render={(i) => <DueItemRow key={`${i.kind}-${i.id}`} item={i} />} />
           </PriorityCard>
-          <PriorityCard variant="week" title="Due This Week" count={data.dueThisWeek.length} href="/my-work" emptyLabel="Nothing due this week">
+          <PriorityCard variant="week" title="Due This Week" count={data.dueThisWeek.length} href="/due?filter=week" emptyLabel="Nothing due this week">
             <WidgetList items={data.dueThisWeek} max={7} emptyTitle="Nothing due this week" render={(i) => <DueItemRow key={`${i.kind}-${i.id}`} item={i} />} />
           </PriorityCard>
         </div>
@@ -51,10 +51,10 @@ export default async function DashboardPage() {
 
       {/* Secondary — where projects stand */}
       <div className="grid gap-4 lg:grid-cols-2">
-        <WidgetCard title="Needs Attention" icon={BellRing} count={data.followUp.length} href="/projects?workflow=needs_follow_up">
+        <WidgetCard title="Needs Attention" icon={BellRing} accent="yellow" count={data.followUp.length} href="/projects?workflow=needs_follow_up">
           <WidgetList items={data.followUp} max={8} emptyTitle="Nothing needs attention" emptyIcon={BellRing} render={(p) => <FollowUpRow key={p.id} project={p} />} />
         </WidgetCard>
-        <WidgetCard title="Waiting on Others" icon={Clock} count={data.counts.awaiting} href="/projects?workflow=awaiting_response">
+        <WidgetCard title="Waiting on Others" icon={Clock} accent="blue" count={data.counts.awaiting} href="/projects?workflow=awaiting_response">
           <WidgetList items={data.awaitingProjects} max={8} emptyTitle="Not waiting on anyone" emptyIcon={Clock} render={(p) => <ProjectRowItem key={p.id} project={p} />} />
         </WidgetCard>
       </div>

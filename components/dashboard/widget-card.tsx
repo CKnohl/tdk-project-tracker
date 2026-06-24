@@ -3,7 +3,7 @@ import { ArrowRight, type LucideIcon } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 
-type Accent = 'red' | 'orange' | 'none';
+type Accent = 'red' | 'orange' | 'yellow' | 'blue' | 'none';
 
 const ACCENT: Record<Accent, { card: string; icon: string; count: string }> = {
   red: {
@@ -15,6 +15,16 @@ const ACCENT: Record<Accent, { card: string; icon: string; count: string }> = {
     card: 'border-orange-200 dark:border-orange-900/70',
     icon: 'text-orange-600 dark:text-orange-400',
     count: 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300',
+  },
+  yellow: {
+    card: 'border-amber-300 dark:border-amber-900/70',
+    icon: 'text-amber-600 dark:text-amber-400',
+    count: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
+  },
+  blue: {
+    card: 'border-sky-300 dark:border-sky-900/70',
+    icon: 'text-sky-600 dark:text-sky-400',
+    count: 'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300',
   },
   none: { card: '', icon: 'text-muted-foreground', count: 'bg-muted text-muted-foreground' },
 };
