@@ -25,6 +25,7 @@ import type {
   CompletedTaskItem,
 } from '@/lib/types';
 import type { CalendarFeedRow, FollowUpNeededRow } from '@/types/database.types';
+import type { DueItem } from '@/lib/data/dashboard';
 import { FOLLOW_UP_REASON_LABEL } from '@/lib/constants';
 
 const dueToneClass: Record<string, string> = {
@@ -50,6 +51,37 @@ export function TaskRow({ task }: { task: TaskWithProject }) {
       </div>
       <div className="flex shrink-0 items-center gap-2">
         <PriorityBadge priority={task.priority} />
+        <span className={cn('whitespace-nowrap text-xs', dueToneClass[due.tone])}>{due.label}</span>
+      </div>
+    </Link>
+  );
+}
+
+export function DueItemRow({ item }: { item: DueItem }) {
+  const due = describeDue(item.due_date);
+  const href = item.project
+    ? `/projects/${item.project.id}?tab=${item.tab}`
+    : item.kind === 'task'
+      ? '/tasks'
+      : '#';
+  return (
+    <Link
+      href={href}
+      className="flex items-center justify-between gap-3 rounded-md px-2 py-2 hover:bg-accent"
+    >
+      <div className="min-w-0">
+        <div className="truncate text-sm font-medium">{item.name}</div>
+        <div className="truncate text-xs text-muted-foreground">
+          {item.project ? `${item.project.project_number} · ${item.project.name}` : '—'}
+        </div>
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        {item.kind === 'submittal' && (
+          <span className="rounded bg-violet-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-violet-700 dark:bg-violet-950 dark:text-violet-300">
+            Submittal
+          </span>
+        )}
+        {item.priority && <PriorityBadge priority={item.priority} />}
         <span className={cn('whitespace-nowrap text-xs', dueToneClass[due.tone])}>{due.label}</span>
       </div>
     </Link>

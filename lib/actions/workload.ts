@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { requireManager, fail, errMessage, type ActionResult } from './_helpers';
-import { notifyTaskAssigned, notifyProjectAssigned } from '@/lib/notify';
+import { notifyTaskAssigned, notifyProjectAssigned, notifyGeneralTaskAssigned } from '@/lib/notify';
 
 // Staff workload management. Project Managers + Admins only (requireManager);
 // RLS additionally enforces rank >= 30 for project_staff writes. All actions
@@ -39,7 +39,11 @@ export async function assignTaskToStaff(taskId: string, staffId: string): Promis
       if (error) return fail(error.message);
       const meta = await taskMeta(supabase, taskId);
       if (meta) {
-        await notifyTaskAssigned({ taskId, taskName: meta.name, projectId: meta.project_id, staffIds: [staffId], actorId: user.id });
+        if (meta.project_id) {
+          await notifyTaskAssigned({ taskId, taskName: meta.name, projectId: meta.project_id, staffIds: [staffId], actorId: user.id });
+        } else {
+          await notifyGeneralTaskAssigned({ taskId, taskName: meta.name, staffIds: [staffId], actorId: user.id });
+        }
       }
     }
     revalidateStaff(staffId);
@@ -88,7 +92,11 @@ export async function reassignTasks(
 
     const { data: tasks } = await supabase.from('tasks').select('id, name, project_id').in('id', taskIds);
     for (const t of tasks ?? []) {
-      await notifyTaskAssigned({ taskId: t.id, taskName: t.name, projectId: t.project_id, staffIds: [toStaffId], actorId: user.id });
+      if (t.project_id) {
+        await notifyTaskAssigned({ taskId: t.id, taskName: t.name, projectId: t.project_id, staffIds: [toStaffId], actorId: user.id });
+      } else {
+        await notifyGeneralTaskAssigned({ taskId: t.id, taskName: t.name, staffIds: [toStaffId], actorId: user.id });
+      }
     }
 
     revalidateStaff(fromStaffId, toStaffId);

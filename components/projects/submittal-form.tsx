@@ -88,13 +88,13 @@ export function SubmittalForm({
             </SelectContent>
           </Select>
         </Field>
-        <Field label="Submission date">
+        <Field label="Date Submitted">
           <Input type="date" value={form.submission_date} onChange={(e) => set('submission_date', e.target.value)} />
         </Field>
-        <Field label="Response due">
+        <Field label="Due Date">
           <Input type="date" value={form.response_due_date} onChange={(e) => set('response_due_date', e.target.value)} />
         </Field>
-        <Field label="Follow-up date">
+        <Field label="Follow-Up Date">
           <Input type="date" value={form.follow_up_date} onChange={(e) => set('follow_up_date', e.target.value)} />
         </Field>
         <Field label="Assigned staff">

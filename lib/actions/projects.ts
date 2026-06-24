@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { projectSchema, type ProjectInput } from '@/lib/validators';
 import { requireEditor, requireManager, fail, errMessage, type ActionResult } from './_helpers';
 import { notifyProjectTeam, notifyProjectAssigned, notifyDeadlineChanged } from '@/lib/notify';
-import { WORKFLOW_STATE } from '@/lib/constants';
+import { WORKFLOW_STATE, PHASE_ORDER, PROJECT_PHASE } from '@/lib/constants';
 import type { ProjectStatus, ProjectPhase, WorkflowState, InactiveReason } from '@/types/database.types';
 
 export async function createProject(input: ProjectInput): Promise<ActionResult> {
@@ -42,6 +42,16 @@ export async function createProject(input: ProjectInput): Promise<ActionResult> 
         .insert(v.staff_ids.map((staff_id) => ({ project_id: data.id, staff_id })));
       await notifyProjectAssigned({ projectId: data.id, projectName: v.name, staffIds: v.staff_ids, actorId: user.id });
     }
+
+    // Seed the editable timeline from the default phase template.
+    await supabase.from('project_phases').insert(
+      PHASE_ORDER.map((key, i) => ({
+        project_id: data.id,
+        name: PROJECT_PHASE[key].label,
+        position: i + 1,
+        is_current: key === v.phase,
+      })),
+    );
 
     revalidatePath('/projects');
     revalidatePath('/dashboard');

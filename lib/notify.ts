@@ -350,6 +350,72 @@ export async function notifyDeadlineChanged(opts: {
   }
 }
 
+/** General (project-less) task assigned -> the assigned staff member(s). */
+export async function notifyGeneralTaskAssigned(opts: {
+  taskId: string;
+  taskName: string;
+  staffIds: string[];
+  actorId?: string | null;
+}): Promise<void> {
+  try {
+    const admin = createAdminClient();
+    const recipients = await userIdsForStaff(admin, opts.staffIds);
+    await dispatch(admin, {
+      type: 'task_assigned',
+      recipientUserIds: recipients,
+      excludeUserIds: [opts.actorId],
+      excludeAdmins: true,
+      title: 'Task assigned',
+      body: opts.taskName,
+      entityType: 'task',
+      entityId: opts.taskId,
+      email: {
+        subject: `Task assigned: ${opts.taskName}`,
+        heading: 'A task was assigned',
+        intro: opts.taskName,
+        lines: ['A general office task has been assigned to you in the TDK Project Tracker.'],
+        ctaLabel: 'Open tasks',
+        path: '/tasks',
+      },
+    });
+  } catch {
+    // best-effort
+  }
+}
+
+/** General (project-less) task completed -> admins + the original creator. */
+export async function notifyGeneralTaskCompleted(opts: {
+  taskId: string;
+  taskName: string;
+  actorId?: string | null;
+  creatorId?: string | null;
+}): Promise<void> {
+  try {
+    const admin = createAdminClient();
+    const recipients = await adminUserIds(admin);
+    if (opts.creatorId) recipients.push(opts.creatorId);
+    await dispatch(admin, {
+      type: 'task_completed',
+      recipientUserIds: recipients,
+      excludeUserIds: [opts.actorId],
+      title: 'Task completed',
+      body: opts.taskName,
+      entityType: 'task',
+      entityId: opts.taskId,
+      email: {
+        subject: `Task completed: ${opts.taskName}`,
+        heading: 'A task was completed',
+        intro: opts.taskName,
+        lines: ['A general office task has been marked complete.'],
+        ctaLabel: 'Open tasks',
+        path: '/tasks',
+      },
+    });
+  } catch {
+    // best-effort
+  }
+}
+
 /**
  * Notify a project's team (assigned staff + manager) of an in-app-only event
  * such as `project_updated` or `follow_up_due`. No email is sent for these.

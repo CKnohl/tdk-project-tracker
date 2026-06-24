@@ -4,6 +4,7 @@ import type {
   WorkflowState,
   TaskStatus,
   TaskPriority,
+  TaskRecurrence,
   SubmittalStatus,
   ContactRole,
 } from '@/types/database.types';
@@ -73,6 +74,14 @@ export const SUBMITTAL_STATUS: Record<SubmittalStatus, Meta<SubmittalStatus>> = 
   revision_required: { value: 'revision_required', label: 'Revision Required', tone: 'yellow' },
   approved: { value: 'approved', label: 'Approved', tone: 'green' },
   rejected: { value: 'rejected', label: 'Rejected', tone: 'red' },
+};
+
+export const TASK_RECURRENCE: Record<TaskRecurrence, string> = {
+  none: 'Does not repeat',
+  daily: 'Daily',
+  weekly: 'Weekly',
+  monthly: 'Monthly',
+  yearly: 'Yearly',
 };
 
 export const CONTACT_ROLE: Record<ContactRole, string> = {

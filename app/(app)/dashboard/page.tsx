@@ -4,7 +4,7 @@ import { StatCards } from '@/components/dashboard/stat-cards';
 import { WidgetCard } from '@/components/dashboard/widget-card';
 import { PriorityCard } from '@/components/dashboard/priority-card';
 import {
-  TaskRow,
+  DueItemRow,
   ProjectRowItem,
   FollowUpRow,
   CompletedTaskRow,
@@ -37,14 +37,14 @@ export default async function DashboardPage() {
       <section>
         <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Priority focus</h2>
         <div className="grid gap-4 md:grid-cols-3">
-          <PriorityCard variant="overdue" title="Overdue Tasks" count={data.overdue.length} href="/my-work" emptyLabel="No overdue tasks">
-            <WidgetList items={data.overdue} max={7} emptyTitle="No overdue tasks" render={(t) => <TaskRow key={t.id} task={t} />} />
+          <PriorityCard variant="overdue" title="Overdue" count={data.overdue.length} href="/my-work" emptyLabel="Nothing overdue">
+            <WidgetList items={data.overdue} max={7} emptyTitle="Nothing overdue" render={(i) => <DueItemRow key={`${i.kind}-${i.id}`} item={i} />} />
           </PriorityCard>
           <PriorityCard variant="today" title="Due Today" count={data.dueToday.length} href="/my-work" emptyLabel="Nothing due today">
-            <WidgetList items={data.dueToday} max={7} emptyTitle="Nothing due today" render={(t) => <TaskRow key={t.id} task={t} />} />
+            <WidgetList items={data.dueToday} max={7} emptyTitle="Nothing due today" render={(i) => <DueItemRow key={`${i.kind}-${i.id}`} item={i} />} />
           </PriorityCard>
           <PriorityCard variant="week" title="Due This Week" count={data.dueThisWeek.length} href="/my-work" emptyLabel="Nothing due this week">
-            <WidgetList items={data.dueThisWeek} max={7} emptyTitle="Nothing due this week" render={(t) => <TaskRow key={t.id} task={t} />} />
+            <WidgetList items={data.dueThisWeek} max={7} emptyTitle="Nothing due this week" render={(i) => <DueItemRow key={`${i.kind}-${i.id}`} item={i} />} />
           </PriorityCard>
         </div>
       </section>

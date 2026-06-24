@@ -10,7 +10,7 @@ import type {
   ActivityItem,
   ProjectStaffMember,
 } from '@/lib/types';
-import type { ProjectStatsRow, ProjectStatus, ProjectPhase, WorkflowState } from '@/types/database.types';
+import type { ProjectStatsRow, ProjectStatus, ProjectPhase, WorkflowState, ProjectPhaseRow } from '@/types/database.types';
 
 const PROJECT_SELECT =
   'id,project_number,name,company_id,status,phase,workflow_state,workflow_state_since,description,scope,project_manager_id,target_completion_date,inactive_reason,last_activity_at,created_by,created_at,updated_at,company:companies(id,key,name,color),manager:staff!projects_project_manager_id_fkey(id,full_name,initials)';
@@ -85,6 +85,7 @@ export interface ProjectDetail {
   files: FileItem[];
   activity: ActivityItem[];
   stats: ProjectStatsRow | null;
+  phases: ProjectPhaseRow[];
 }
 
 export async function getProjectDetail(id: string): Promise<ProjectDetail | null> {
@@ -98,7 +99,7 @@ export async function getProjectDetail(id: string): Promise<ProjectDetail | null
     .maybeSingle();
   if (!project) return null;
 
-  const [staff, tasks, submittals, contacts, notes, files, activity, stats] = await Promise.all([
+  const [staff, tasks, submittals, contacts, notes, files, activity, stats, phases] = await Promise.all([
     supabase
       .from('project_staff')
       .select('role_on_project, staff:staff(id,full_name,initials)')
@@ -107,7 +108,7 @@ export async function getProjectDetail(id: string): Promise<ProjectDetail | null
     supabase
       .from('tasks')
       .select(
-        'id,project_id,name,description,priority,status,due_date,completion_pct,notes,created_by,completed_at,created_at,updated_at,assignees:task_staff(staff:staff(id,full_name,initials))',
+        'id,project_id,name,description,priority,status,due_date,completion_pct,notes,recurrence,created_by,completed_at,created_at,updated_at,assignees:task_staff(staff:staff(id,full_name,initials))',
       )
       .eq('project_id', id)
       .order('status', { ascending: true })
@@ -142,6 +143,12 @@ export async function getProjectDetail(id: string): Promise<ProjectDetail | null
       .limit(50)
       .returns<ActivityItem[]>(),
     supabase.from('v_project_stats').select('*').eq('project_id', id).maybeSingle(),
+    supabase
+      .from('project_phases')
+      .select('*')
+      .eq('project_id', id)
+      .order('position', { ascending: true })
+      .returns<ProjectPhaseRow[]>(),
   ]);
 
   // Submittal status history (every change, with the responsible user).
@@ -168,5 +175,6 @@ export async function getProjectDetail(id: string): Promise<ProjectDetail | null
     files: files.data ?? [],
     activity: activity.data ?? [],
     stats: stats.data ?? null,
+    phases: phases.data ?? [],
   };
 }

@@ -58,13 +58,13 @@ export function ProjectTabs({
       </TabsList>
 
       <TabsContent value="overview"><OverviewTab detail={detail} /></TabsContent>
-      <TabsContent value="tasks"><TasksTab projectId={id} tasks={detail.tasks} staff={staff} canEdit={canEdit} /></TabsContent>
+      <TabsContent value="tasks"><TasksTab projectId={id} tasks={detail.tasks} staff={staff} canEdit={canEdit} activity={detail.activity} /></TabsContent>
       <TabsContent value="submittals"><SubmittalsTab projectId={id} submittals={detail.submittals} history={detail.submittalHistory} staff={staff} canEdit={canEdit} canManage={canManage} /></TabsContent>
       <TabsContent value="contacts"><ContactsTab projectId={id} contacts={detail.contacts} canEdit={canEdit} /></TabsContent>
       <TabsContent value="files"><FilesTab projectId={id} files={detail.files} canEdit={canEdit} /></TabsContent>
       <TabsContent value="notes"><NotesTab projectId={id} notes={detail.notes} canEdit={canEdit} /></TabsContent>
       <TabsContent value="staff"><StaffTab projectId={id} members={detail.staff} staff={staff} canEdit={canEdit} /></TabsContent>
-      <TabsContent value="timeline"><TimelineTab project={detail.project} submittals={detail.submittals} tasks={detail.tasks} /></TabsContent>
+      <TabsContent value="timeline"><TimelineTab project={detail.project} phases={detail.phases} submittals={detail.submittals} tasks={detail.tasks} canEdit={canEdit} /></TabsContent>
       <TabsContent value="history"><HistoryTab activity={detail.activity} /></TabsContent>
     </Tabs>
   );

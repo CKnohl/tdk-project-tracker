@@ -19,6 +19,7 @@ export const workflowStateEnum = z.enum(['normal', 'awaiting_response', 'needs_f
 export const inactiveReasonEnum = z.enum(['completed', 'lost_bid', 'cancelled', 'fell_through']);
 export const taskStatusEnum = z.enum(['not_started', 'in_progress', 'waiting', 'completed', 'cancelled']);
 export const taskPriorityEnum = z.enum(['low', 'medium', 'high', 'urgent']);
+export const taskRecurrenceEnum = z.enum(['none', 'daily', 'weekly', 'monthly', 'yearly']);
 export const submittalStatusEnum = z.enum([
   'drafting', 'ready_to_submit', 'submitted', 'awaiting_response', 'revision_required', 'approved', 'rejected',
 ]);
@@ -63,9 +64,22 @@ export const taskSchema = z.object({
   due_date: optionalDate,
   completion_pct: z.coerce.number().int().min(0).max(100).default(0),
   notes: optionalText,
+  recurrence: taskRecurrenceEnum.default('none'),
   staff_ids: z.array(z.string().uuid()).default([]),
 });
 export type TaskInput = z.infer<typeof taskSchema>;
+
+// Standalone office task — same shape minus the project association.
+export const generalTaskSchema = z.object({
+  name: z.string().trim().min(2, 'Task name is required'),
+  description: optionalText,
+  priority: taskPriorityEnum.default('medium'),
+  status: taskStatusEnum.default('not_started'),
+  due_date: optionalDate,
+  recurrence: taskRecurrenceEnum.default('none'),
+  staff_ids: z.array(z.string().uuid()).default([]),
+});
+export type GeneralTaskInput = z.infer<typeof generalTaskSchema>;
 
 export const submittalSchema = z.object({
   project_id: z.string().uuid(),

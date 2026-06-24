@@ -15,6 +15,7 @@ export type WorkflowState = 'normal' | 'awaiting_response' | 'needs_follow_up' |
 export type InactiveReason = 'completed' | 'lost_bid' | 'cancelled' | 'fell_through';
 export type TaskStatus = 'not_started' | 'in_progress' | 'waiting' | 'completed' | 'cancelled';
 export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
+export type TaskRecurrence = 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
 export type SubmittalStatus =
   | 'drafting' | 'ready_to_submit' | 'submitted' | 'awaiting_response'
   | 'revision_required' | 'approved' | 'rejected';
@@ -57,9 +58,10 @@ export type ProjectContactRow = Timestamps & {
   phone: string | null; role: ContactRole; notes: string | null; created_by: string | null;
 };
 export type TaskRow = Timestamps & {
-  id: string; project_id: string; name: string; description: string | null;
+  id: string; project_id: string | null; name: string; description: string | null;
   priority: TaskPriority; status: TaskStatus; due_date: string | null; completion_pct: number;
   notes: string | null; created_by: string | null; completed_at: string | null;
+  recurrence: TaskRecurrence;
 };
 export type TaskStaffRow = { task_id: string; staff_id: string };
 export type SubmittalRow = Timestamps & {
@@ -99,6 +101,9 @@ export type NotificationPreferenceRow = Timestamps & {
   email_task_completed: boolean;
   email_project_assigned: boolean;
   email_deadline_changed: boolean;
+};
+export type ProjectPhaseRow = {
+  id: string; project_id: string; name: string; position: number; is_current: boolean; created_at: string;
 };
 export type ReportRunRow = {
   id: string; generated_by: string | null; generated_at: string;
@@ -144,6 +149,7 @@ export type Database = {
       settings: TableDef<SettingRow>;
       notification_preferences: TableDef<NotificationPreferenceRow>;
       report_runs: TableDef<ReportRunRow>;
+      project_phases: TableDef<ProjectPhaseRow>;
     };
     Views: {
       v_calendar_feed: ViewDef<CalendarFeedRow>;
@@ -156,7 +162,7 @@ export type Database = {
     Enums: {
       project_status: ProjectStatus; project_phase: ProjectPhase; workflow_state: WorkflowState;
       inactive_reason: InactiveReason; task_status: TaskStatus; task_priority: TaskPriority;
-      submittal_status: SubmittalStatus; notification_type: NotificationType;
+      submittal_status: SubmittalStatus; notification_type: NotificationType; task_recurrence: TaskRecurrence;
       activity_entity: ActivityEntity; activity_action: ActivityAction;
       calendar_event_type: CalendarEventType; contact_role: ContactRole;
     };

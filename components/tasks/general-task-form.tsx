@@ -11,59 +11,54 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Field } from '@/components/shared/field';
 import { MultiSelect } from '@/components/shared/multi-select';
 import { TASK_STATUS, TASK_PRIORITY, TASK_RECURRENCE } from '@/lib/constants';
-import { taskSchema } from '@/lib/validators';
-import { createTask, updateTask } from '@/lib/actions/tasks';
+import { generalTaskSchema } from '@/lib/validators';
+import { createGeneralTask, updateGeneralTask } from '@/lib/actions/general-tasks';
 import type { StaffOption } from '@/lib/data/reference';
 import type { TaskWithStaff } from '@/lib/types';
 
-export function TaskForm({
-  projectId,
+export function GeneralTaskForm({
   staff,
   task,
   onSuccess,
 }: {
-  projectId: string;
   staff: StaffOption[];
   task?: TaskWithStaff;
   onSuccess: () => void;
 }) {
   const router = useRouter();
   const [pending, setPending] = React.useState(false);
-  const [errors, setErrors] = React.useState<Record<string, string>>({});
+  const [error, setError] = React.useState('');
   const [form, setForm] = React.useState({
     name: task?.name ?? '',
     description: task?.description ?? '',
     priority: task?.priority ?? 'medium',
     status: task?.status ?? 'not_started',
     due_date: task?.due_date ?? '',
-    completion_pct: task?.completion_pct ?? 0,
     recurrence: task?.recurrence ?? 'none',
-    staff_ids: task?.assignees?.map((a) => a.staff?.id).filter(Boolean) as string[] ?? [],
+    staff_ids: (task?.assignees?.map((a) => a.staff?.id).filter(Boolean) as string[]) ?? [],
   });
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) => setForm((f) => ({ ...f, [k]: v }));
   const staffOptions = staff.filter((s) => s.is_active).map((s) => ({ value: s.id, label: s.full_name }));
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setErrors({});
+    setError('');
     const input = {
-      project_id: projectId,
       name: form.name,
       description: form.description || undefined,
       priority: form.priority,
       status: form.status,
       due_date: form.due_date || undefined,
-      completion_pct: form.completion_pct,
       recurrence: form.recurrence,
       staff_ids: form.staff_ids,
     };
-    const parsed = taskSchema.safeParse(input);
+    const parsed = generalTaskSchema.safeParse(input);
     if (!parsed.success) {
-      setErrors({ name: parsed.error.issues[0]?.message ?? 'Invalid input' });
+      setError(parsed.error.issues[0]?.message ?? 'Invalid input');
       return;
     }
     setPending(true);
-    const res = task ? await updateTask(task.id, parsed.data) : await createTask(parsed.data);
+    const res = task ? await updateGeneralTask(task.id, parsed.data) : await createGeneralTask(parsed.data);
     setPending(false);
     if (!res.ok) return toast.error(res.error);
     toast.success(task ? 'Task updated' : 'Task added');
@@ -73,8 +68,8 @@ export function TaskForm({
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
-      <Field label="Task name" required error={errors.name}>
-        <Input value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="Submit FOIL request" />
+      <Field label="Task name" required error={error}>
+        <Input value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="Update CAD standards, order supplies…" />
       </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Priority">
@@ -95,9 +90,6 @@ export function TaskForm({
         </Field>
         <Field label="Due date">
           <Input type="date" value={form.due_date} onChange={(e) => set('due_date', e.target.value)} />
-        </Field>
-        <Field label="Completion %">
-          <Input type="number" min={0} max={100} value={form.completion_pct} onChange={(e) => set('completion_pct', Number(e.target.value))} />
         </Field>
         <Field label="Repeats" hint="Creates the next occurrence on completion">
           <Select value={form.recurrence} onValueChange={(v) => set('recurrence', v as typeof form.recurrence)}>

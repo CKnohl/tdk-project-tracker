@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, Repeat } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -11,11 +11,11 @@ import { MetaBadge } from '@/components/shared/meta-badge';
 import { PriorityBadge } from '@/components/shared/priority-badge';
 import { StaffStack } from '@/components/shared/staff-avatar';
 import { EmptyState } from '@/components/shared/empty-state';
-import { TaskForm } from '../task-form';
-import { TaskDetailDialog } from './task-detail-dialog';
+import { GeneralTaskForm } from './general-task-form';
+import { TaskDetailDialog } from '@/components/projects/detail/task-detail-dialog';
 import { TASK_STATUS } from '@/lib/constants';
 import { describeDue, cn } from '@/lib/utils';
-import { setTaskStatus, deleteTask } from '@/lib/actions/tasks';
+import { setGeneralTaskStatus, deleteGeneralTask } from '@/lib/actions/general-tasks';
 import type { StaffOption } from '@/lib/data/reference';
 import type { TaskWithStaff, ActivityItem } from '@/lib/types';
 import type { TaskStatus } from '@/types/database.types';
@@ -28,18 +28,16 @@ const dueTone: Record<string, string> = {
   none: 'text-muted-foreground',
 };
 
-export function TasksTab({
-  projectId,
+export function GeneralTasksView({
   tasks,
+  activity,
   staff,
   canEdit,
-  activity = [],
 }: {
-  projectId: string;
   tasks: TaskWithStaff[];
+  activity: ActivityItem[];
   staff: StaffOption[];
   canEdit: boolean;
-  activity?: ActivityItem[];
 }) {
   const router = useRouter();
   const [adding, setAdding] = React.useState(false);
@@ -47,14 +45,14 @@ export function TasksTab({
   const [viewing, setViewing] = React.useState<TaskWithStaff | null>(null);
 
   async function quickStatus(task: TaskWithStaff, status: TaskStatus) {
-    const res = await setTaskStatus(task.id, projectId, status);
+    const res = await setGeneralTaskStatus(task.id, status);
     if (!res.ok) toast.error(res.error);
     else router.refresh();
   }
 
   async function onDelete(task: TaskWithStaff) {
     if (!confirm(`Delete task "${task.name}"?`)) return;
-    const res = await deleteTask(task.id, projectId);
+    const res = await deleteGeneralTask(task.id);
     if (!res.ok) toast.error(res.error);
     else { toast.success('Task deleted'); router.refresh(); }
   }
@@ -68,15 +66,15 @@ export function TasksTab({
               <Button size="sm"><Plus className="h-4 w-4" /> Add task</Button>
             </DialogTrigger>
             <DialogContent>
-              <DialogHeader><DialogTitle>New task</DialogTitle></DialogHeader>
-              <TaskForm projectId={projectId} staff={staff} onSuccess={() => setAdding(false)} />
+              <DialogHeader><DialogTitle>New office task</DialogTitle></DialogHeader>
+              <GeneralTaskForm staff={staff} onSuccess={() => setAdding(false)} />
             </DialogContent>
           </Dialog>
         </div>
       )}
 
       {tasks.length === 0 ? (
-        <EmptyState title="No tasks yet" description={canEdit ? 'Add the first task to get started.' : undefined} />
+        <EmptyState title="No office tasks yet" description={canEdit ? 'Add a standalone task that isn’t tied to a project.' : undefined} />
       ) : (
         <div className="divide-y rounded-lg border">
           {tasks.map((task) => {
@@ -90,12 +88,10 @@ export function TasksTab({
                       {task.name}
                     </span>
                     <PriorityBadge priority={task.priority} />
+                    {task.recurrence !== 'none' && <Repeat className="h-3.5 w-3.5 text-muted-foreground" />}
                   </div>
                   <div className="mt-0.5 flex items-center gap-2 text-xs">
                     <span className={dueTone[due.tone]}>{due.label}</span>
-                    {task.completion_pct > 0 && task.status !== 'completed' && (
-                      <span className="text-muted-foreground">· {task.completion_pct}%</span>
-                    )}
                   </div>
                 </button>
                 <div className="flex shrink-0 items-center gap-2">
@@ -130,7 +126,7 @@ export function TasksTab({
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
         <DialogContent>
           <DialogHeader><DialogTitle>Edit task</DialogTitle></DialogHeader>
-          {editing && <TaskForm projectId={projectId} staff={staff} task={editing} onSuccess={() => setEditing(null)} />}
+          {editing && <GeneralTaskForm staff={staff} task={editing} onSuccess={() => setEditing(null)} />}
         </DialogContent>
       </Dialog>
 
