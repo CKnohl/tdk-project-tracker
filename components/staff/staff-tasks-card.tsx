@@ -12,6 +12,7 @@ import { MetaBadge } from '@/components/shared/meta-badge';
 import { PriorityBadge } from '@/components/shared/priority-badge';
 import { EmptyState } from '@/components/shared/empty-state';
 import { AssignTaskDialog } from './assign-task-dialog';
+import { CreateTaskDialog } from './create-task-dialog';
 import { reassignTasks, unassignTaskFromStaff } from '@/lib/actions/workload';
 import { TASK_STATUS } from '@/lib/constants';
 import { describeDue, cn } from '@/lib/utils';
@@ -80,6 +81,7 @@ export function StaffTasksCard({
     <div className="space-y-3">
       {canManage && (
         <div className="flex flex-wrap items-center gap-2">
+          <CreateTaskDialog staffId={staffId} projects={projects} />
           <AssignTaskDialog staffId={staffId} projects={projects} />
           <div className="ml-auto flex items-center gap-2">
             <div className="w-44">

@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { submittalSchema, type SubmittalInput } from '@/lib/validators';
 import { requireEditor, requireManager, fail, errMessage, type ActionResult } from './_helpers';
+import type { SubmittalStatus } from '@/types/database.types';
 
 export async function createSubmittal(input: SubmittalInput): Promise<ActionResult> {
   try {
@@ -59,6 +60,25 @@ export async function updateSubmittal(id: string, input: SubmittalInput): Promis
       .eq('id', id);
     if (error) return fail(error.message);
     revalidatePath(`/projects/${v.project_id}`);
+    revalidatePath('/dashboard');
+    return { ok: true, id };
+  } catch (e) {
+    return fail(errMessage(e));
+  }
+}
+
+/** Quick status change (used by the one-click Complete button). */
+export async function setSubmittalStatus(
+  id: string,
+  projectId: string,
+  status: SubmittalStatus,
+): Promise<ActionResult> {
+  try {
+    await requireEditor();
+    const supabase = await createClient();
+    const { error } = await supabase.from('project_submittals').update({ status }).eq('id', id);
+    if (error) return fail(error.message);
+    revalidatePath(`/projects/${projectId}`);
     revalidatePath('/dashboard');
     return { ok: true, id };
   } catch (e) {

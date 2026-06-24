@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -16,6 +16,7 @@ import { TaskDetailDialog } from './task-detail-dialog';
 import { TASK_STATUS } from '@/lib/constants';
 import { describeDue, cn } from '@/lib/utils';
 import { setTaskStatus, deleteTask } from '@/lib/actions/tasks';
+import { celebrate } from '@/lib/confetti';
 import type { StaffOption } from '@/lib/data/reference';
 import type { TaskWithStaff, ActivityItem } from '@/lib/types';
 import type { TaskStatus } from '@/types/database.types';
@@ -52,6 +53,14 @@ export function TasksTab({
     else router.refresh();
   }
 
+  async function complete(task: TaskWithStaff) {
+    const res = await setTaskStatus(task.id, projectId, 'completed');
+    if (!res.ok) return toast.error(res.error);
+    celebrate();
+    toast.success('Task completed');
+    router.refresh();
+  }
+
   async function onDelete(task: TaskWithStaff) {
     if (!confirm(`Delete task "${task.name}"?`)) return;
     const res = await deleteTask(task.id, projectId);
@@ -81,25 +90,40 @@ export function TasksTab({
         <div className="divide-y rounded-lg border">
           {tasks.map((task) => {
             const due = describeDue(task.due_date);
+            const done = task.status === 'completed';
             const members = task.assignees.map((a) => a.staff).filter(Boolean) as { id: string; full_name: string; initials: string | null }[];
             return (
-              <div key={task.id} className="flex items-center justify-between gap-3 p-3">
+              <div key={task.id} className={cn('flex items-center justify-between gap-3 p-3', done && 'bg-muted/30')}>
                 <button type="button" onClick={() => setViewing(task)} className="min-w-0 flex-1 rounded text-left transition-opacity hover:opacity-70">
                   <div className="flex items-center gap-2">
-                    <span className={cn('truncate font-medium', task.status === 'completed' && 'text-muted-foreground line-through')}>
+                    <span className={cn('truncate font-medium', done && 'text-muted-foreground line-through')}>
                       {task.name}
                     </span>
-                    <PriorityBadge priority={task.priority} />
+                    {!done && <PriorityBadge priority={task.priority} />}
                   </div>
                   <div className="mt-0.5 flex items-center gap-2 text-xs">
-                    <span className={dueTone[due.tone]}>{due.label}</span>
-                    {task.completion_pct > 0 && task.status !== 'completed' && (
-                      <span className="text-muted-foreground">· {task.completion_pct}%</span>
+                    {done ? (
+                      <span className="font-medium text-emerald-600 dark:text-emerald-400">Completed</span>
+                    ) : (
+                      <>
+                        <span className={dueTone[due.tone]}>{due.label}</span>
+                        {task.completion_pct > 0 && <span className="text-muted-foreground">· {task.completion_pct}%</span>}
+                      </>
                     )}
                   </div>
                 </button>
                 <div className="flex shrink-0 items-center gap-2">
                   {members.length > 0 && <StaffStack members={members} max={3} />}
+                  {canEdit && !done && task.status !== 'cancelled' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 gap-1 border-emerald-200 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-900 dark:text-emerald-400 dark:hover:bg-emerald-950"
+                      onClick={() => complete(task)}
+                    >
+                      <CheckCircle2 className="h-4 w-4" /> Complete
+                    </Button>
+                  )}
                   {canEdit ? (
                     <Select value={task.status} onValueChange={(v) => quickStatus(task, v as TaskStatus)}>
                       <SelectTrigger className="h-8 w-[140px]"><SelectValue /></SelectTrigger>

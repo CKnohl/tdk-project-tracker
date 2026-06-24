@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash2, Building } from 'lucide-react';
+import { Plus, Pencil, Trash2, Building, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { MetaBadge } from '@/components/shared/meta-badge';
@@ -12,7 +12,8 @@ import { SubmittalForm } from '../submittal-form';
 import { SubmittalDetailDialog } from './submittal-detail-dialog';
 import { SUBMITTAL_STATUS } from '@/lib/constants';
 import { formatDate, describeDue, cn } from '@/lib/utils';
-import { deleteSubmittal } from '@/lib/actions/submittals';
+import { deleteSubmittal, setSubmittalStatus } from '@/lib/actions/submittals';
+import { celebrate } from '@/lib/confetti';
 import type { StaffOption } from '@/lib/data/reference';
 import type { SubmittalWithProject, SubmittalHistoryItem } from '@/lib/types';
 
@@ -51,6 +52,14 @@ export function SubmittalsTab({
     else { toast.success('Submittal deleted'); router.refresh(); }
   }
 
+  async function complete(s: SubmittalWithProject) {
+    const res = await setSubmittalStatus(s.id, projectId, 'approved');
+    if (!res.ok) return toast.error(res.error);
+    celebrate();
+    toast.success('Submittal marked approved');
+    router.refresh();
+  }
+
   return (
     <div className="space-y-3">
       {canEdit && (
@@ -73,21 +82,34 @@ export function SubmittalsTab({
         <div className="space-y-2">
           {submittals.map((s) => {
             const due = describeDue(s.response_due_date);
+            const terminal = s.status === 'approved' || s.status === 'rejected';
             return (
-              <div key={s.id} className="rounded-lg border p-3">
+              <div key={s.id} className={cn('rounded-lg border p-3', terminal && 'bg-muted/30')}>
                 <div className="flex items-start justify-between gap-3">
                   <button type="button" onClick={() => setViewing(s)} className="min-w-0 flex-1 rounded text-left transition-opacity hover:opacity-70">
                     <div className="flex items-center gap-2">
-                      <span className="font-medium">{s.submission_type}</span>
+                      <span className={cn('font-medium', terminal && 'text-muted-foreground line-through')}>{s.submission_type}</span>
                       <MetaBadge meta={SUBMITTAL_STATUS[s.status]} />
                     </div>
                     {s.agency && <div className="text-xs text-muted-foreground">{s.agency}</div>}
-                    <div className="mt-1 text-sm">
-                      <span className="mr-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">Due Date</span>
-                      <span className={cn('font-semibold', dueTone[due.tone])}>{due.label}</span>
-                    </div>
+                    {!terminal && (
+                      <div className="mt-1 text-sm">
+                        <span className="mr-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">Due Date</span>
+                        <span className={cn('font-semibold', dueTone[due.tone])}>{due.label}</span>
+                      </div>
+                    )}
                   </button>
-                  <div className="flex shrink-0 gap-1">
+                  <div className="flex shrink-0 items-center gap-1">
+                    {canEdit && !terminal && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 gap-1 border-emerald-200 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-900 dark:text-emerald-400 dark:hover:bg-emerald-950"
+                        onClick={() => complete(s)}
+                      >
+                        <CheckCircle2 className="h-4 w-4" /> Complete
+                      </Button>
+                    )}
                     {canEdit && (
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditing(s)}>
                         <Pencil className="h-4 w-4" />

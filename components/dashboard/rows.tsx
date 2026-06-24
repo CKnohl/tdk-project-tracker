@@ -59,6 +59,7 @@ export function TaskRow({ task }: { task: TaskWithProject }) {
 
 export function DueItemRow({ item }: { item: DueItem }) {
   const due = describeDue(item.due_date);
+  const overdue = due.tone === 'overdue';
   const href = item.project
     ? `/projects/${item.project.id}?tab=${item.tab}`
     : item.kind === 'task'
@@ -67,8 +68,14 @@ export function DueItemRow({ item }: { item: DueItem }) {
   return (
     <Link
       href={href}
-      className="flex items-center justify-between gap-3 rounded-md px-2 py-2 hover:bg-accent"
+      className={cn(
+        'relative flex items-center justify-between gap-3 rounded-md py-2 pr-2 hover:bg-accent',
+        overdue ? 'pl-4' : 'pl-2',
+      )}
     >
+      {overdue && (
+        <StatusRail state="overdue" radius="rounded-full" glow={false} className="left-1 top-1 h-[calc(100%-0.5rem)] w-1" />
+      )}
       <div className="min-w-0">
         <div className="truncate text-sm font-medium">{item.name}</div>
         <div className="truncate text-xs text-muted-foreground">
@@ -157,8 +164,9 @@ export function FollowUpRow({ project }: { project: FollowUpNeededRow }) {
   return (
     <Link
       href={`/projects/${project.id}`}
-      className="flex items-center justify-between gap-3 rounded-md px-2 py-2 hover:bg-accent"
+      className="relative flex items-center justify-between gap-3 rounded-md py-2 pl-4 pr-2 hover:bg-accent"
     >
+      <StatusRail state="needs_attention" radius="rounded-full" glow={false} className="left-1 top-1 h-[calc(100%-0.5rem)] w-1" />
       <div className="min-w-0">
         <div className="truncate text-sm font-medium">{project.name}</div>
         <div className="truncate text-xs text-muted-foreground">

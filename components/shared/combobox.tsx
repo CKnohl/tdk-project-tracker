@@ -5,6 +5,7 @@ import { Check, ChevronsUpDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
+import { useWheelScroll } from '@/lib/use-wheel-scroll';
 import { cn } from '@/lib/utils';
 
 export interface ComboOption {
@@ -33,6 +34,7 @@ export function Combobox({
 }) {
   const [open, setOpen] = React.useState(false);
   const [filter, setFilter] = React.useState('');
+  const scrollRef = useWheelScroll();
 
   const filtered = options.filter((o) => o.label.toLowerCase().includes(filter.toLowerCase()));
   const current = options.find((o) => o.value === value);
@@ -56,7 +58,7 @@ export function Combobox({
         <div className="p-2">
           <Input placeholder="Search…" value={filter} onChange={(e) => setFilter(e.target.value)} className="h-8" />
         </div>
-        <div className="max-h-56 overflow-y-auto scrollbar-thin p-1">
+        <div ref={scrollRef} className="max-h-56 overflow-y-auto scrollbar-thin p-1">
           {filtered.length === 0 && (
             <p className="px-2 py-3 text-center text-xs text-muted-foreground">{emptyText}</p>
           )}

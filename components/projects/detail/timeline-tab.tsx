@@ -16,19 +16,22 @@ export function TimelineTab({
   phases,
   submittals,
   tasks,
-  canEdit,
+  canManage,
 }: {
   project: ProjectListItem;
   phases: ProjectPhaseRow[];
   submittals: SubmittalWithProject[];
   tasks: TaskWithStaff[];
-  canEdit: boolean;
+  canManage: boolean;
 }) {
   const router = useRouter();
+  const [editMode, setEditMode] = React.useState(false);
   const [pending, setPending] = React.useState(false);
   const [adding, setAdding] = React.useState('');
   const [editId, setEditId] = React.useState<string | null>(null);
   const [editName, setEditName] = React.useState('');
+
+  const currentIdx = phases.findIndex((p) => p.is_current);
 
   async function act(p: Promise<{ ok: boolean; error?: string }>) {
     setPending(true);
@@ -75,53 +78,87 @@ export function TimelineTab({
       <div>
         <div className="mb-3 flex items-center justify-between">
           <h3 className="text-sm font-semibold">Phases</h3>
-          {canEdit && <span className="text-xs text-muted-foreground">Click a phase to mark it current</span>}
+          {canManage &&
+            (editMode ? (
+              <Button size="sm" variant="outline" onClick={() => setEditMode(false)}>
+                <Check className="h-4 w-4" /> Done
+              </Button>
+            ) : (
+              <Button size="sm" variant="outline" onClick={() => setEditMode(true)}>
+                <Pencil className="h-4 w-4" /> Edit Timeline
+              </Button>
+            ))}
         </div>
 
-        <div className="space-y-1.5">
-          {phases.map((phase, i) => (
-            <div
-              key={phase.id}
-              className={cn(
-                'flex items-center gap-2 rounded-md border px-2.5 py-1.5',
-                phase.is_current && 'border-primary bg-primary/5',
-              )}
-            >
-              {editId === phase.id ? (
-                <>
-                  <Input
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    className="h-8"
-                    autoFocus
-                    onKeyDown={(e) => e.key === 'Enter' && onRename(phase.id)}
-                  />
-                  <Button size="icon" variant="ghost" className="h-8 w-8" disabled={pending} onClick={() => onRename(phase.id)}>
-                    <Check className="h-4 w-4" />
-                  </Button>
-                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setEditId(null)}>
-                    <X className="h-4 w-4" />
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    disabled={!canEdit || pending}
-                    onClick={() => canEdit && act(setCurrentPhase(project.id, phase.id))}
-                    className="flex min-w-0 flex-1 items-center gap-2 text-left disabled:cursor-default"
+        {!editMode ? (
+          /* ── Clean, presentation-friendly view ── */
+          phases.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No phases defined.</p>
+          ) : (
+            <div className="flex flex-wrap gap-1.5">
+              {phases.map((phase, i) => {
+                const done = currentIdx >= 0 && i < currentIdx;
+                const active = phase.is_current;
+                return (
+                  <div
+                    key={phase.id}
+                    className={cn(
+                      'flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs',
+                      active && 'border-primary bg-primary text-primary-foreground',
+                      done && 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300',
+                      !done && !active && 'text-muted-foreground',
+                    )}
                   >
-                    <span
-                      className={cn(
-                        'flex h-4 w-4 shrink-0 items-center justify-center rounded-full border',
-                        phase.is_current ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground/40',
-                      )}
+                    {done && <Check className="h-3 w-3" />}
+                    {phase.name}
+                  </div>
+                );
+              })}
+            </div>
+          )
+        ) : (
+          /* ── Edit mode (PM+ only) ── */
+          <div className="space-y-1.5">
+            <p className="mb-2 text-xs text-muted-foreground">Click a phase to mark it current.</p>
+            {phases.map((phase, i) => (
+              <div
+                key={phase.id}
+                className={cn('flex items-center gap-2 rounded-md border px-2.5 py-1.5', phase.is_current && 'border-primary bg-primary/5')}
+              >
+                {editId === phase.id ? (
+                  <>
+                    <Input
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      className="h-8"
+                      autoFocus
+                      onKeyDown={(e) => e.key === 'Enter' && onRename(phase.id)}
+                    />
+                    <Button size="icon" variant="ghost" className="h-8 w-8" disabled={pending} onClick={() => onRename(phase.id)}>
+                      <Check className="h-4 w-4" />
+                    </Button>
+                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setEditId(null)}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => act(setCurrentPhase(project.id, phase.id))}
+                      className="flex min-w-0 flex-1 items-center gap-2 text-left disabled:cursor-default"
                     >
-                      {phase.is_current && <Check className="h-2.5 w-2.5" />}
-                    </span>
-                    <span className={cn('truncate text-sm', phase.is_current && 'font-medium')}>{phase.name}</span>
-                  </button>
-                  {canEdit && (
+                      <span
+                        className={cn(
+                          'flex h-4 w-4 shrink-0 items-center justify-center rounded-full border',
+                          phase.is_current ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground/40',
+                        )}
+                      >
+                        {phase.is_current && <Check className="h-2.5 w-2.5" />}
+                      </span>
+                      <span className={cn('truncate text-sm', phase.is_current && 'font-medium')}>{phase.name}</span>
+                    </button>
                     <div className="flex shrink-0 items-center">
                       <Button size="icon" variant="ghost" className="h-7 w-7" disabled={pending || i === 0} onClick={() => move(i, -1)}>
                         <ChevronUp className="h-4 w-4" />
@@ -142,26 +179,24 @@ export function TimelineTab({
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
-                  )}
-                </>
-              )}
-            </div>
-          ))}
-          {phases.length === 0 && <p className="text-sm text-muted-foreground">No phases defined.</p>}
-        </div>
+                  </>
+                )}
+              </div>
+            ))}
+            {phases.length === 0 && <p className="text-sm text-muted-foreground">No phases yet — add the first below.</p>}
 
-        {canEdit && (
-          <div className="mt-2 flex items-center gap-2">
-            <Input
-              value={adding}
-              onChange={(e) => setAdding(e.target.value)}
-              placeholder="Add a phase…"
-              className="h-8"
-              onKeyDown={(e) => e.key === 'Enter' && onAdd()}
-            />
-            <Button size="sm" variant="outline" disabled={pending || adding.trim().length < 2} onClick={onAdd}>
-              <Plus className="h-4 w-4" /> Add
-            </Button>
+            <div className="mt-2 flex items-center gap-2">
+              <Input
+                value={adding}
+                onChange={(e) => setAdding(e.target.value)}
+                placeholder="Add a phase…"
+                className="h-8"
+                onKeyDown={(e) => e.key === 'Enter' && onAdd()}
+              />
+              <Button size="sm" variant="outline" disabled={pending || adding.trim().length < 2} onClick={onAdd}>
+                <Plus className="h-4 w-4" /> Add
+              </Button>
+            </div>
           </div>
         )}
       </div>

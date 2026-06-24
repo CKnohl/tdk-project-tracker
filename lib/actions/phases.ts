@@ -2,14 +2,14 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { requireEditor, fail, errMessage, type ActionResult } from './_helpers';
+import { requireManager, fail, errMessage, type ActionResult } from './_helpers';
 
 // Editable project timeline phases. Staff+ who are project members (or PM/Admin)
 // per RLS. projects.phase (enum) is left untouched — this drives the Timeline tab.
 
 export async function addPhase(projectId: string, name: string): Promise<ActionResult> {
   try {
-    await requireEditor();
+    await requireManager();
     const trimmed = name.trim();
     if (trimmed.length < 2) return fail('Phase name is too short');
     const supabase = await createClient();
@@ -32,7 +32,7 @@ export async function addPhase(projectId: string, name: string): Promise<ActionR
 
 export async function renamePhase(id: string, projectId: string, name: string): Promise<ActionResult> {
   try {
-    await requireEditor();
+    await requireManager();
     const trimmed = name.trim();
     if (trimmed.length < 2) return fail('Phase name is too short');
     const supabase = await createClient();
@@ -47,7 +47,7 @@ export async function renamePhase(id: string, projectId: string, name: string): 
 
 export async function deletePhase(id: string, projectId: string): Promise<ActionResult> {
   try {
-    await requireEditor();
+    await requireManager();
     const supabase = await createClient();
     const { error } = await supabase.from('project_phases').delete().eq('id', id);
     if (error) return fail(error.message);
@@ -61,7 +61,7 @@ export async function deletePhase(id: string, projectId: string): Promise<Action
 /** Persist a new ordering. `orderedIds` is the full list of phase ids in order. */
 export async function reorderPhases(projectId: string, orderedIds: string[]): Promise<ActionResult> {
   try {
-    await requireEditor();
+    await requireManager();
     const supabase = await createClient();
     for (let i = 0; i < orderedIds.length; i++) {
       const { error } = await supabase
@@ -80,7 +80,7 @@ export async function reorderPhases(projectId: string, orderedIds: string[]): Pr
 
 export async function setCurrentPhase(projectId: string, id: string): Promise<ActionResult> {
   try {
-    await requireEditor();
+    await requireManager();
     const supabase = await createClient();
     await supabase.from('project_phases').update({ is_current: false }).eq('project_id', projectId).eq('is_current', true);
     const { error } = await supabase.from('project_phases').update({ is_current: true }).eq('id', id);
