@@ -11,6 +11,9 @@ import type { CompanyOption } from '@/lib/data/reference';
 
 const ALL = '__all__';
 
+/** sessionStorage key holding the last /projects query string (incl. leading "?"). */
+export const PROJECTS_QUERY_KEY = 'tdk-projects-query';
+
 export function ProjectsToolbar({ companies }: { companies: CompanyOption[] }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -35,6 +38,16 @@ export function ProjectsToolbar({ companies }: { companies: CompanyOption[] }) {
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q]);
+
+  // Remember the current filter/search query so a project's Back link can
+  // return here with filters intact (see PROJECTS_QUERY_KEY consumers).
+  React.useEffect(() => {
+    try {
+      sessionStorage.setItem(PROJECTS_QUERY_KEY, window.location.search);
+    } catch {
+      /* storage unavailable — non-critical */
+    }
+  }, [params]);
 
   const val = (key: string) => params.get(key) ?? ALL;
   const hasFilters = ['status', 'company', 'phase', 'workflow', 'group', 'sort', 'q'].some((k) => params.get(k));

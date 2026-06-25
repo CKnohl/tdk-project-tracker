@@ -2,6 +2,16 @@
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  experimental: {
+    // Keep recently-visited route segments in the client Router Cache so
+    // navigating back (e.g. project detail → /projects) reuses the rendered
+    // page instead of triggering a full server re-render. Mutations still call
+    // router.refresh(), which busts the cache for fresh data after edits.
+    staleTimes: {
+      dynamic: 30,
+      static: 180,
+    },
+  },
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: '*.supabase.co' },

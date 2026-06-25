@@ -33,6 +33,7 @@ export function GeneralTaskForm({
     description: task?.description ?? '',
     priority: task?.priority ?? 'medium',
     status: task?.status ?? 'not_started',
+    start_date: task?.start_date ?? '',
     due_date: task?.due_date ?? '',
     recurrence: task?.recurrence ?? 'none',
     staff_ids: (task?.assignees?.map((a) => a.staff?.id).filter(Boolean) as string[]) ?? [],
@@ -48,6 +49,7 @@ export function GeneralTaskForm({
       description: form.description || undefined,
       priority: form.priority,
       status: form.status,
+      start_date: form.start_date || undefined,
       due_date: form.due_date || undefined,
       recurrence: form.recurrence,
       staff_ids: form.staff_ids,
@@ -87,6 +89,9 @@ export function GeneralTaskForm({
               {Object.values(TASK_STATUS).map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
             </SelectContent>
           </Select>
+        </Field>
+        <Field label="Start date">
+          <Input type="date" value={form.start_date} onChange={(e) => set('start_date', e.target.value)} />
         </Field>
         <Field label="Due date">
           <Input type="date" value={form.due_date} onChange={(e) => set('due_date', e.target.value)} />

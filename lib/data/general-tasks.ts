@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import type { TaskWithStaff, ActivityItem } from '@/lib/types';
 
 const GENERAL_TASK_SELECT =
-  'id,project_id,name,description,priority,status,due_date,completion_pct,notes,recurrence,created_by,completed_at,created_at,updated_at,assignees:task_staff(staff:staff(id,full_name,initials))';
+  'id,project_id,name,description,priority,status,start_date,due_date,completion_pct,notes,recurrence,created_by,completed_at,created_at,updated_at,assignees:task_staff(staff:staff(id,full_name,initials))';
 
 export interface GeneralTasksData {
   tasks: TaskWithStaff[];

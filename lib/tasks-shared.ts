@@ -34,12 +34,13 @@ export async function maybeCreateRecurrence(client: DB, taskId: string): Promise
     const { data: t } = await client.from('tasks').select('*').eq('id', taskId).maybeSingle();
     if (!t || t.recurrence === 'none' || !t.due_date) return null;
 
-    const base = parseISO(t.due_date);
-    const next =
-      t.recurrence === 'daily' ? addDays(base, 1)
-      : t.recurrence === 'weekly' ? addWeeks(base, 1)
-      : t.recurrence === 'monthly' ? addMonths(base, 1)
-      : addYears(base, 1);
+    const step = (d: Date) =>
+      t.recurrence === 'daily' ? addDays(d, 1)
+      : t.recurrence === 'weekly' ? addWeeks(d, 1)
+      : t.recurrence === 'monthly' ? addMonths(d, 1)
+      : addYears(d, 1);
+    const nextDue = step(parseISO(t.due_date));
+    const nextStart = t.start_date ? step(parseISO(t.start_date)) : null;
 
     const { data: created, error } = await client
       .from('tasks')
@@ -49,7 +50,8 @@ export async function maybeCreateRecurrence(client: DB, taskId: string): Promise
         description: t.description,
         priority: t.priority,
         status: 'not_started',
-        due_date: format(next, 'yyyy-MM-dd'),
+        start_date: nextStart ? format(nextStart, 'yyyy-MM-dd') : null,
+        due_date: format(nextDue, 'yyyy-MM-dd'),
         completion_pct: 0,
         notes: t.notes,
         recurrence: t.recurrence,

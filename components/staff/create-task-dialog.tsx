@@ -39,6 +39,7 @@ export function CreateTaskDialog({ staffId, projects }: { staffId: string; proje
     project: GENERAL,
     name: '',
     description: '',
+    start_date: '',
     due_date: '',
     priority: 'medium' as TaskPriority,
     status: 'not_started' as TaskStatus,
@@ -51,7 +52,7 @@ export function CreateTaskDialog({ staffId, projects }: { staffId: string; proje
   ];
 
   function reset() {
-    setForm({ project: GENERAL, name: '', description: '', due_date: '', priority: 'medium', status: 'not_started' });
+    setForm({ project: GENERAL, name: '', description: '', start_date: '', due_date: '', priority: 'medium', status: 'not_started' });
     setError('');
   }
 
@@ -66,6 +67,7 @@ export function CreateTaskDialog({ staffId, projects }: { staffId: string; proje
       description: form.description || undefined,
       priority: form.priority,
       status: form.status,
+      start_date: form.start_date || undefined,
       due_date: form.due_date || undefined,
       recurrence: 'none' as const,
       staff_ids: [staffId],
@@ -122,6 +124,9 @@ export function CreateTaskDialog({ staffId, projects }: { staffId: string; proje
                   {Object.values(TASK_STATUS).map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
                 </SelectContent>
               </Select>
+            </Field>
+            <Field label="Start date">
+              <Input type="date" value={form.start_date} onChange={(e) => set('start_date', e.target.value)} />
             </Field>
             <Field label="Due date">
               <Input type="date" value={form.due_date} onChange={(e) => set('due_date', e.target.value)} />

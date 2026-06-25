@@ -35,6 +35,7 @@ export function TaskForm({
     description: task?.description ?? '',
     priority: task?.priority ?? 'medium',
     status: task?.status ?? 'not_started',
+    start_date: task?.start_date ?? '',
     due_date: task?.due_date ?? '',
     completion_pct: task?.completion_pct ?? 0,
     recurrence: task?.recurrence ?? 'none',
@@ -52,6 +53,7 @@ export function TaskForm({
       description: form.description || undefined,
       priority: form.priority,
       status: form.status,
+      start_date: form.start_date || undefined,
       due_date: form.due_date || undefined,
       completion_pct: form.completion_pct,
       recurrence: form.recurrence,
@@ -92,6 +94,9 @@ export function TaskForm({
               {Object.values(TASK_STATUS).map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
             </SelectContent>
           </Select>
+        </Field>
+        <Field label="Start date">
+          <Input type="date" value={form.start_date} onChange={(e) => set('start_date', e.target.value)} />
         </Field>
         <Field label="Due date">
           <Input type="date" value={form.due_date} onChange={(e) => set('due_date', e.target.value)} />

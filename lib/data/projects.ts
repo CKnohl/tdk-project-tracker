@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { createClient } from '@/lib/supabase/server';
 import type {
   ProjectListItem,
@@ -13,7 +14,7 @@ import type {
 import type { ProjectStatsRow, ProjectStatus, ProjectPhase, WorkflowState, ProjectPhaseRow } from '@/types/database.types';
 
 const PROJECT_SELECT =
-  'id,project_number,name,company_id,status,phase,workflow_state,workflow_state_since,description,scope,project_manager_id,target_completion_date,inactive_reason,last_activity_at,created_by,created_at,updated_at,company:companies(id,key,name,color),manager:staff!projects_project_manager_id_fkey(id,full_name,initials)';
+  'id,project_number,name,company_id,status,phase,current_phase_name,workflow_state,workflow_state_since,description,scope,project_manager_id,target_completion_date,inactive_reason,last_activity_at,created_by,created_at,updated_at,company:companies(id,key,name,color),manager:staff!projects_project_manager_id_fkey(id,full_name,initials)';
 
 export interface ProjectFilters {
   q?: string;
@@ -88,7 +89,9 @@ export interface ProjectDetail {
   phases: ProjectPhaseRow[];
 }
 
-export async function getProjectDetail(id: string): Promise<ProjectDetail | null> {
+// Wrapped in React cache() so the detail route's generateMetadata + page body
+// share one fetch per request instead of querying everything twice.
+export const getProjectDetail = cache(async (id: string): Promise<ProjectDetail | null> => {
   const supabase = await createClient();
 
   const { data: project } = await supabase
@@ -108,7 +111,7 @@ export async function getProjectDetail(id: string): Promise<ProjectDetail | null
     supabase
       .from('tasks')
       .select(
-        'id,project_id,name,description,priority,status,due_date,completion_pct,notes,recurrence,created_by,completed_at,created_at,updated_at,assignees:task_staff(staff:staff(id,full_name,initials))',
+        'id,project_id,name,description,priority,status,start_date,due_date,completion_pct,notes,recurrence,created_by,completed_at,created_at,updated_at,assignees:task_staff(staff:staff(id,full_name,initials))',
       )
       .eq('project_id', id)
       .order('status', { ascending: true })
@@ -183,4 +186,4 @@ export async function getProjectDetail(id: string): Promise<ProjectDetail | null
     stats: stats.data ?? null,
     phases: phases.data ?? [],
   };
-}
+});

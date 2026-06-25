@@ -14,6 +14,9 @@ import type {
 
 const iso = (d: Date) => format(d, 'yyyy-MM-dd');
 const PROJECT_SELECT =
+  // NOTE: this const is also used against v_awaiting_response_projects (a `select p.*`
+  // view that does NOT expose the newer current_phase_name column), so do not add
+  // current_phase_name here — those rows fall back to the enum phase label.
   'id,project_number,name,company_id,status,phase,workflow_state,workflow_state_since,target_completion_date,last_activity_at,description,scope,project_manager_id,inactive_reason,created_by,created_at,updated_at,company:companies(id,key,name,color),manager:staff!projects_project_manager_id_fkey(id,full_name,initials)';
 const COMPLETED_SELECT =
   'id,project_id,name,description,priority,status,due_date,completion_pct,notes,created_by,completed_at,created_at,updated_at,project:projects(id,project_number,name),assignees:task_staff(staff:staff(id,full_name,initials))';

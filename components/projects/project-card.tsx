@@ -39,7 +39,7 @@ export function ProjectCard({ project }: { project: ProjectCardType }) {
         </div>
 
         <div className="flex flex-wrap gap-1.5">
-          <MetaBadge meta={PROJECT_PHASE[project.phase]} />
+          <MetaBadge meta={project.current_phase_name ? { label: project.current_phase_name, tone: 'slate' } : PROJECT_PHASE[project.phase]} />
           {project.workflow_state !== 'normal' && <MetaBadge meta={WORKFLOW_STATE[project.workflow_state]} />}
         </div>
 

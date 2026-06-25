@@ -19,16 +19,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { MetaBadge } from '@/components/shared/meta-badge';
 import { ProjectStatusBadge } from '@/components/shared/status-indicator';
 import { ProjectForm } from '@/components/projects/project-form';
-import { WORKFLOW_STATE, PROJECT_PHASE, PHASE_ORDER } from '@/lib/constants';
+import { PROJECTS_QUERY_KEY } from '@/components/projects/projects-toolbar';
+import { WORKFLOW_STATE } from '@/lib/constants';
 import {
-  setProjectPhase,
   setWorkflowState,
   setProjectStatus,
   deleteProject,
 } from '@/lib/actions/projects';
+import { setCurrentPhase } from '@/lib/actions/phases';
 import type { CompanyOption, StaffOption } from '@/lib/data/reference';
 import type { ProjectListItem } from '@/lib/types';
-import type { InactiveReason } from '@/types/database.types';
+import type { InactiveReason, ProjectPhaseRow } from '@/types/database.types';
 
 const ARCHIVE_REASONS: { value: InactiveReason; label: string }[] = [
   { value: 'completed', label: 'Completed' },
@@ -39,6 +40,7 @@ const ARCHIVE_REASONS: { value: InactiveReason; label: string }[] = [
 
 export function ProjectHeader({
   project,
+  phases,
   assignedStaffIds,
   companies,
   staff,
@@ -46,6 +48,7 @@ export function ProjectHeader({
   canManage,
 }: {
   project: ProjectListItem;
+  phases: ProjectPhaseRow[];
   assignedStaffIds: string[];
   companies: CompanyOption[];
   staff: StaffOption[];
@@ -54,6 +57,20 @@ export function ProjectHeader({
 }) {
   const router = useRouter();
   const [editing, setEditing] = React.useState(false);
+  // Restore the user's last /projects filter/search so Back returns them to the
+  // list exactly as they left it. Falls back to bare /projects (e.g. arrived
+  // here from search or a notification).
+  const [backHref, setBackHref] = React.useState('/projects');
+  React.useEffect(() => {
+    try {
+      const q = sessionStorage.getItem(PROJECTS_QUERY_KEY);
+      if (q) setBackHref(`/projects${q}`);
+    } catch {
+      /* storage unavailable — keep default */
+    }
+  }, []);
+  const currentPhase = phases.find((p) => p.is_current) ?? null;
+  const currentPhaseLabel = currentPhase?.name ?? project.current_phase_name ?? null;
 
   const run = async (p: Promise<{ ok: boolean; error?: string }>, ok?: string) => {
     const res = await p;
@@ -63,7 +80,7 @@ export function ProjectHeader({
 
   return (
     <div className="space-y-3">
-      <Link href="/projects" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+      <Link href={backHref} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
         <ChevronLeft className="h-4 w-4" /> Projects
       </Link>
 
@@ -81,18 +98,20 @@ export function ProjectHeader({
           <div className="mt-1 flex flex-wrap items-center gap-1.5">
             <ProjectStatusBadge status={project.status} />
             {project.workflow_state !== 'normal' && <MetaBadge meta={WORKFLOW_STATE[project.workflow_state]} />}
-            <MetaBadge meta={PROJECT_PHASE[project.phase]} />
+            {currentPhaseLabel && <MetaBadge meta={{ label: currentPhaseLabel, tone: 'slate' }} />}
           </div>
         </div>
 
         {canEdit && (
           <div className="flex flex-wrap items-center gap-2">
-            <Select value={project.phase} onValueChange={(v) => run(setProjectPhase(project.id, v as never), 'Phase updated')}>
-              <SelectTrigger className="h-9 w-[170px]"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {PHASE_ORDER.map((p) => <SelectItem key={p} value={p}>{PROJECT_PHASE[p].label}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            {phases.length > 0 && (
+              <Select value={currentPhase?.id ?? ''} onValueChange={(v) => run(setCurrentPhase(project.id, v), 'Phase updated')}>
+                <SelectTrigger className="h-9 w-[170px]"><SelectValue placeholder="Set phase" /></SelectTrigger>
+                <SelectContent>
+                  {phases.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            )}
             <Select value={project.workflow_state} onValueChange={(v) => run(setWorkflowState(project.id, v as never), 'Workflow updated')}>
               <SelectTrigger className="h-9 w-[170px]"><SelectValue /></SelectTrigger>
               <SelectContent>

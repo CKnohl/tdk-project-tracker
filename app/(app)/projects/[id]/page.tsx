@@ -31,6 +31,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
     <div className="space-y-5">
       <ProjectHeader
         project={detail.project}
+        phases={detail.phases}
         assignedStaffIds={assignedStaffIds}
         companies={companies}
         staff={staff}

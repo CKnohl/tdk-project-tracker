@@ -154,7 +154,7 @@ export function ProjectRowItem({ project }: { project: ProjectListItem }) {
       </div>
       <div className="flex shrink-0 items-center gap-1.5">
         {project.workflow_state !== 'normal' && <MetaBadge meta={WORKFLOW_STATE[project.workflow_state]} />}
-        <MetaBadge meta={PROJECT_PHASE[project.phase]} />
+        <MetaBadge meta={project.current_phase_name ? { label: project.current_phase_name, tone: 'slate' } : PROJECT_PHASE[project.phase]} />
       </div>
     </Link>
   );

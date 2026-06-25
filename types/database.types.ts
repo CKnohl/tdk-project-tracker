@@ -50,7 +50,7 @@ export type ProjectRow = Timestamps & {
   status: ProjectStatus; phase: ProjectPhase; workflow_state: WorkflowState; workflow_state_since: string | null;
   description: string | null; scope: string | null; project_manager_id: string | null;
   target_completion_date: string | null; inactive_reason: InactiveReason | null;
-  last_activity_at: string; created_by: string | null;
+  last_activity_at: string; created_by: string | null; current_phase_name: string | null;
 };
 export type ProjectStaffRow = { project_id: string; staff_id: string; role_on_project: string | null; assigned_at: string };
 export type ProjectContactRow = Timestamps & {
@@ -59,7 +59,7 @@ export type ProjectContactRow = Timestamps & {
 };
 export type TaskRow = Timestamps & {
   id: string; project_id: string | null; name: string; description: string | null;
-  priority: TaskPriority; status: TaskStatus; due_date: string | null; completion_pct: number;
+  priority: TaskPriority; status: TaskStatus; due_date: string | null; start_date: string | null; completion_pct: number;
   notes: string | null; created_by: string | null; completed_at: string | null;
   recurrence: TaskRecurrence;
 };

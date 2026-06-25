@@ -9,7 +9,7 @@ const TASK_SELECT =
 const SUBMITTAL_SELECT =
   'id,project_id,submission_type,agency,submission_date,response_due_date,follow_up_date,assigned_staff_id,status,notes,created_by,created_at,updated_at,project:projects(id,project_number,name),assigned:staff(id,full_name,initials)';
 const PROJECT_SELECT =
-  'id,project_number,name,company_id,status,phase,workflow_state,workflow_state_since,target_completion_date,last_activity_at,description,scope,project_manager_id,inactive_reason,created_by,created_at,updated_at,project_staff!inner(staff_id),company:companies(id,key,name,color),manager:staff!projects_project_manager_id_fkey(id,full_name,initials)';
+  'id,project_number,name,company_id,status,phase,current_phase_name,workflow_state,workflow_state_since,target_completion_date,last_activity_at,description,scope,project_manager_id,inactive_reason,created_by,created_at,updated_at,project_staff!inner(staff_id),company:companies(id,key,name,color),manager:staff!projects_project_manager_id_fkey(id,full_name,initials)';
 
 export interface MyWorkData {
   hasStaff: boolean;

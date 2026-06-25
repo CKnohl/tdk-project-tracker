@@ -6,7 +6,47 @@ import { projectSchema, type ProjectInput } from '@/lib/validators';
 import { requireEditor, requireManager, fail, errMessage, type ActionResult } from './_helpers';
 import { notifyProjectTeam, notifyProjectAssigned, notifyDeadlineChanged } from '@/lib/notify';
 import { WORKFLOW_STATE, PHASE_ORDER, PROJECT_PHASE } from '@/lib/constants';
-import type { ProjectStatus, ProjectPhase, WorkflowState, InactiveReason } from '@/types/database.types';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Database, ProjectStatus, ProjectPhase, WorkflowState, InactiveReason } from '@/types/database.types';
+
+type DB = SupabaseClient<Database>;
+
+/**
+ * THE single source of truth for project staff assignment. Reconciles
+ * project_staff to `staffIds`, but ALWAYS keeps the project's manager assigned
+ * (the PM is also assigned staff — P3). Used by createProject, updateProject, and
+ * setProjectStaff so every assignment path behaves identically.
+ */
+async function syncProjectStaff(
+  supabase: DB,
+  projectId: string,
+  staffIds: string[],
+  actorId: string,
+  projectName?: string | null,
+): Promise<{ added: string[]; removed: string[] }> {
+  const { data: proj } = await supabase
+    .from('projects')
+    .select('project_manager_id, name')
+    .eq('id', projectId)
+    .maybeSingle();
+
+  const desired = new Set(staffIds);
+  if (proj?.project_manager_id) desired.add(proj.project_manager_id); // PM is always assigned
+
+  const { data: existing } = await supabase.from('project_staff').select('staff_id').eq('project_id', projectId);
+  const current = new Set((existing ?? []).map((r) => r.staff_id));
+  const toAdd = [...desired].filter((s) => !current.has(s));
+  const toRemove = [...current].filter((s) => !desired.has(s));
+
+  if (toAdd.length > 0) {
+    await supabase.from('project_staff').insert(toAdd.map((staff_id) => ({ project_id: projectId, staff_id })));
+    await notifyProjectAssigned({ projectId, projectName: projectName ?? proj?.name ?? null, staffIds: toAdd, actorId });
+  }
+  if (toRemove.length > 0) {
+    await supabase.from('project_staff').delete().eq('project_id', projectId).in('staff_id', toRemove);
+  }
+  return { added: toAdd, removed: toRemove };
+}
 
 export async function createProject(input: ProjectInput): Promise<ActionResult> {
   try {
@@ -30,18 +70,13 @@ export async function createProject(input: ProjectInput): Promise<ActionResult> 
         project_manager_id: v.project_manager_id ?? null,
         target_completion_date: v.target_completion_date ?? null,
         inactive_reason: v.inactive_reason ?? null,
+        // Denormalized current phase name (Timeline is the source of truth — P4).
+        current_phase_name: PROJECT_PHASE[v.phase].label,
         created_by: user.id,
       })
       .select('id')
       .single();
     if (error) return fail(error.message);
-
-    if (v.staff_ids.length > 0) {
-      await supabase
-        .from('project_staff')
-        .insert(v.staff_ids.map((staff_id) => ({ project_id: data.id, staff_id })));
-      await notifyProjectAssigned({ projectId: data.id, projectName: v.name, staffIds: v.staff_ids, actorId: user.id });
-    }
 
     // Seed the editable timeline from the default phase template.
     await supabase.from('project_phases').insert(
@@ -52,6 +87,9 @@ export async function createProject(input: ProjectInput): Promise<ActionResult> 
         is_current: key === v.phase,
       })),
     );
+
+    // Assign staff (always includes the PM) via the shared reconciler.
+    await syncProjectStaff(supabase, data.id, v.staff_ids, user.id, v.name);
 
     revalidatePath('/projects');
     revalidatePath('/dashboard');
@@ -93,6 +131,10 @@ export async function updateProject(id: string, input: ProjectInput): Promise<Ac
       })
       .eq('id', id);
     if (error) return fail(error.message);
+
+    // P2 fix: the edit form's Assigned Staff now actually persists — same shared
+    // reconciler as the staff page. P3: the (possibly new) PM is auto-included.
+    await syncProjectStaff(supabase, id, v.staff_ids, user.id, v.name);
 
     await notifyProjectTeam({ projectId: id, type: 'project_updated', title: 'Project updated', excludeUserId: user.id });
 
@@ -196,23 +238,7 @@ export async function setProjectStaff(projectId: string, staffIds: string[]): Pr
   try {
     const user = await requireEditor();
     const supabase = await createClient();
-    // Replace the assignment set.
-    const { data: existing } = await supabase
-      .from('project_staff')
-      .select('staff_id')
-      .eq('project_id', projectId);
-    const current = new Set((existing ?? []).map((r) => r.staff_id));
-    const next = new Set(staffIds);
-    const toAdd = staffIds.filter((s) => !current.has(s));
-    const toRemove = [...current].filter((s) => !next.has(s));
-
-    if (toAdd.length > 0) {
-      await supabase.from('project_staff').insert(toAdd.map((staff_id) => ({ project_id: projectId, staff_id })));
-      await notifyProjectAssigned({ projectId, staffIds: toAdd, actorId: user.id });
-    }
-    if (toRemove.length > 0) {
-      await supabase.from('project_staff').delete().eq('project_id', projectId).in('staff_id', toRemove);
-    }
+    await syncProjectStaff(supabase, projectId, staffIds, user.id);
     revalidatePath(`/projects/${projectId}`);
     return { ok: true, id: projectId };
   } catch (e) {

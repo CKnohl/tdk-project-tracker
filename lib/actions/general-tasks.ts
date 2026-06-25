@@ -28,6 +28,7 @@ export async function createGeneralTask(input: GeneralTaskInput): Promise<Action
         description: v.description ?? null,
         priority: v.priority,
         status: v.status,
+        start_date: v.start_date ?? null,
         due_date: v.due_date ?? null,
         completion_pct: 0,
         recurrence: v.recurrence,
@@ -65,6 +66,7 @@ export async function updateGeneralTask(id: string, input: GeneralTaskInput): Pr
         description: v.description ?? null,
         priority: v.priority,
         status: v.status,
+        start_date: v.start_date ?? null,
         due_date: v.due_date ?? null,
         recurrence: v.recurrence,
       })

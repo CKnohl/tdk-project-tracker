@@ -165,16 +165,18 @@ export function ProjectForm({
             </Select>
           </Field>
         )}
-        <Field label="Phase" error={errors.phase}>
-          <Select value={form.phase} onValueChange={(v) => set('phase', v as typeof form.phase)}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {PHASE_ORDER.map((p) => (
-                <SelectItem key={p} value={p}>{PROJECT_PHASE[p].label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
+        {!project && (
+          <Field label="Starting Phase" error={errors.phase} hint="Edit phases later on the Timeline tab.">
+            <Select value={form.phase} onValueChange={(v) => set('phase', v as typeof form.phase)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {PHASE_ORDER.map((p) => (
+                  <SelectItem key={p} value={p}>{PROJECT_PHASE[p].label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+        )}
         <Field label="Target Completion" error={errors.target_completion_date}>
           <Input type="date" value={form.target_completion_date} onChange={(e) => set('target_completion_date', e.target.value)} />
         </Field>

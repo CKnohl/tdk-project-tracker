@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { Sidebar } from './sidebar';
 import { Topbar } from './topbar';
+import { PointerEventsGuard } from './pointer-events-guard';
 import { InstallPrompt } from '@/components/pwa/install-prompt';
 import { cn } from '@/lib/utils';
 import type { RoleKey } from '@/lib/permissions';
@@ -36,6 +37,7 @@ export function AppShell({ user, children }: { user: ShellUser; children: React.
 
   return (
     <div className="min-h-screen bg-muted/30">
+      <PointerEventsGuard />
       <Sidebar collapsed={collapsed} onToggle={toggle} />
       <div className={cn('flex min-h-screen flex-col transition-[padding] duration-200', collapsed ? 'md:pl-16' : 'md:pl-60')}>
         <Topbar user={user} />
