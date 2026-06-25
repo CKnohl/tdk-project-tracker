@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { Sidebar } from './sidebar';
 import { Topbar } from './topbar';
+import { PageTransition } from './page-transition';
 import { PointerEventsGuard } from './pointer-events-guard';
 import { InstallPrompt } from '@/components/pwa/install-prompt';
 import { cn } from '@/lib/utils';
@@ -42,7 +43,9 @@ export function AppShell({ user, children }: { user: ShellUser; children: React.
       <div className={cn('flex min-h-screen flex-col transition-[padding] duration-200', collapsed ? 'md:pl-16' : 'md:pl-60')}>
         <Topbar user={user} />
         <main className="flex-1 p-4 md:p-6">
-          <div className="mx-auto w-full max-w-7xl">{children}</div>
+          <div className="mx-auto w-full max-w-7xl">
+            <PageTransition>{children}</PageTransition>
+          </div>
         </main>
       </div>
       <InstallPrompt />

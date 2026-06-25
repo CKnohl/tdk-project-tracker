@@ -1,22 +1,13 @@
-import { addDays, format } from 'date-fns';
 import { createClient } from '@/lib/supabase/server';
 import { getDueItems, type DueItem } from '@/lib/data/due-items';
-import type {
-  ProjectListItem,
-  ActivityItem,
-  CompletedTaskItem,
-} from '@/lib/types';
-import type {
-  StaffWorkloadRow,
-  CalendarFeedRow,
-  FollowUpNeededRow,
-} from '@/types/database.types';
+import { computeSchedule, type ScheduleMilestone, type ScheduleSubmittal } from '@/lib/schedule';
+import type { ProjectListItem, CompletedTaskItem } from '@/lib/types';
+import type { FollowUpNeededRow, ProjectPhaseRow, ProjectStatus, WorkflowState, InactiveReason } from '@/types/database.types';
 
-const iso = (d: Date) => format(d, 'yyyy-MM-dd');
 const PROJECT_SELECT =
-  // NOTE: this const is also used against v_awaiting_response_projects (a `select p.*`
-  // view that does NOT expose the newer current_phase_name column), so do not add
-  // current_phase_name here — those rows fall back to the enum phase label.
+  // NOTE: also used against v_awaiting_response_projects, a `select p.*` view
+  // created before current_phase_name existed — so it does NOT expose that
+  // column. Don't add it here; it's enriched from the base table below.
   'id,project_number,name,company_id,status,phase,workflow_state,workflow_state_since,target_completion_date,last_activity_at,description,scope,project_manager_id,inactive_reason,created_by,created_at,updated_at,company:companies(id,key,name,color),manager:staff!projects_project_manager_id_fkey(id,full_name,initials)';
 const COMPLETED_SELECT =
   'id,project_id,name,description,priority,status,due_date,completion_pct,notes,created_by,completed_at,created_at,updated_at,project:projects(id,project_number,name),assignees:task_staff(staff:staff(id,full_name,initials))';
@@ -28,91 +19,57 @@ export interface DashboardData {
   overdue: DueItem[];
   awaitingProjects: ProjectListItem[];
   followUp: FollowUpNeededRow[];
-  recentProjects: ProjectListItem[];
-  workload: StaffWorkloadRow[];
-  activity: ActivityItem[];
-  upcoming: CalendarFeedRow[];
   recentlyCompleted: CompletedTaskItem[];
 }
 
 export async function getDashboardData(): Promise<DashboardData> {
   const supabase = await createClient();
-  const today = new Date();
-  const todayStr = iso(today);
-  const in14Str = iso(addDays(today, 14));
 
   const countBy = (status: 'active' | 'on_hold' | 'inactive') =>
     supabase.from('projects').select('*', { count: 'exact', head: true }).eq('status', status);
 
-  const [
-    activeC,
-    holdC,
-    inactiveC,
-    awaitingC,
-    due,
-    awaitingProjects,
-    followUp,
-    recentProjects,
-    workload,
-    activity,
-    upcoming,
-    recentlyCompleted,
-  ] = await Promise.all([
-    countBy('active'),
-    countBy('on_hold'),
-    countBy('inactive'),
-    supabase.from('v_awaiting_response_projects').select('*', { count: 'exact', head: true }),
-    getDueItems(),
-    supabase
-      .from('v_awaiting_response_projects')
-      .select(PROJECT_SELECT)
-      .order('workflow_state_since', { ascending: true, nullsFirst: true })
-      .limit(8)
-      .returns<ProjectListItem[]>(),
-    supabase
-      .from('v_follow_up_needed')
-      .select('*')
-      .eq('reason', 'needs_follow_up')
-      .order('last_activity_at', { ascending: true })
-      .limit(10)
-      .returns<FollowUpNeededRow[]>(),
-    supabase
+  const [activeC, holdC, inactiveC, awaitingC, due, awaitingProjects, followUp, recentlyCompleted] =
+    await Promise.all([
+      countBy('active'),
+      countBy('on_hold'),
+      countBy('inactive'),
+      supabase.from('v_awaiting_response_projects').select('*', { count: 'exact', head: true }),
+      getDueItems(),
+      supabase
+        .from('v_awaiting_response_projects')
+        .select(PROJECT_SELECT)
+        .order('workflow_state_since', { ascending: true, nullsFirst: true })
+        .limit(8)
+        .returns<ProjectListItem[]>(),
+      supabase
+        .from('v_follow_up_needed')
+        .select('*')
+        .eq('reason', 'needs_follow_up')
+        .order('last_activity_at', { ascending: true })
+        .limit(10)
+        .returns<FollowUpNeededRow[]>(),
+      supabase
+        .from('tasks')
+        .select(COMPLETED_SELECT)
+        .eq('status', 'completed')
+        .not('completed_at', 'is', null)
+        .order('completed_at', { ascending: false })
+        .limit(8)
+        .returns<CompletedTaskItem[]>(),
+    ]);
+
+  // P2: the awaiting view predates current_phase_name, so backfill it from the
+  // base table — the "Waiting on Others" widget shows the Timeline phase, not
+  // the legacy enum. One small keyed lookup; skipped when the widget is empty.
+  const awaiting = awaitingProjects.data ?? [];
+  if (awaiting.length > 0) {
+    const { data: phaseRows } = await supabase
       .from('projects')
-      .select(PROJECT_SELECT)
-      .order('last_activity_at', { ascending: false })
-      .limit(6)
-      .returns<ProjectListItem[]>(),
-    supabase
-      .from('v_staff_workload')
-      .select('*')
-      .order('open_tasks', { ascending: false })
-      .limit(8)
-      .returns<StaffWorkloadRow[]>(),
-    supabase
-      .from('activity_logs')
-      .select(
-        'id,actor_id,action,entity_type,entity_id,project_id,summary,metadata,created_at,actor:users(id,full_name),project:projects(id,project_number,name)',
-      )
-      .order('created_at', { ascending: false })
-      .limit(12)
-      .returns<ActivityItem[]>(),
-    supabase
-      .from('v_calendar_feed')
-      .select('*')
-      .gte('start_at', todayStr)
-      .lte('start_at', in14Str)
-      .order('start_at', { ascending: true })
-      .limit(10)
-      .returns<CalendarFeedRow[]>(),
-    supabase
-      .from('tasks')
-      .select(COMPLETED_SELECT)
-      .eq('status', 'completed')
-      .not('completed_at', 'is', null)
-      .order('completed_at', { ascending: false })
-      .limit(8)
-      .returns<CompletedTaskItem[]>(),
-  ]);
+      .select('id,current_phase_name')
+      .in('id', awaiting.map((p) => p.id));
+    const phaseById = new Map((phaseRows ?? []).map((r) => [r.id, r.current_phase_name]));
+    for (const p of awaiting) p.current_phase_name = phaseById.get(p.id) ?? null;
+  }
 
   return {
     counts: {
@@ -124,12 +81,90 @@ export async function getDashboardData(): Promise<DashboardData> {
     dueToday: due.today,
     dueThisWeek: due.week,
     overdue: due.overdue,
-    awaitingProjects: awaitingProjects.data ?? [],
+    awaitingProjects: awaiting,
     followUp: followUp.data ?? [],
-    recentProjects: recentProjects.data ?? [],
-    workload: workload.data ?? [],
-    activity: activity.data ?? [],
-    upcoming: upcoming.data ?? [],
     recentlyCompleted: recentlyCompleted.data ?? [],
   };
+}
+
+export interface ScheduleHealthSummary {
+  onSchedule: number;
+  atRisk: number;
+  slipping: number;
+  waitingClient: number;
+  waitingMunicipality: number;
+  upcomingMilestones: number;
+  slippingProjects: { id: string; project_number: string; name: string; reason: string }[];
+  upcoming: { id: string; project_number: string; name: string; label: string; days: number }[];
+}
+
+const EMPTY_SCHEDULE_HEALTH: ScheduleHealthSummary = {
+  onSchedule: 0, atRisk: 0, slipping: 0, waitingClient: 0, waitingMunicipality: 0,
+  upcomingMilestones: 0, slippingProjects: [], upcoming: [],
+};
+
+/**
+ * V4.0 dashboard "Project Schedule Health" — runs the schedule engine across all
+ * active projects. A few set-based reads aggregated in memory (no per-project
+ * fan-out), reusing lib/schedule so the verdict matches the project pages.
+ */
+export async function getScheduleHealth(): Promise<ScheduleHealthSummary> {
+  const supabase = await createClient();
+  const { data: projects } = await supabase
+    .from('projects')
+    .select('id, project_number, name, created_at, target_completion_date, status, workflow_state, current_phase_name, inactive_reason')
+    .in('status', ['active', 'on_hold'])
+    .returns<Array<{
+      id: string; project_number: string; name: string; created_at: string;
+      target_completion_date: string | null; status: ProjectStatus; workflow_state: WorkflowState;
+      current_phase_name: string | null; inactive_reason: InactiveReason | null;
+    }>>();
+  const projs = projects ?? [];
+  if (projs.length === 0) return EMPTY_SCHEDULE_HEALTH;
+  const ids = projs.map((p) => p.id);
+
+  const [phasesRes, subsRes, msRes] = await Promise.all([
+    supabase.from('project_phases').select('id, project_id, name, position, is_current, start_date, end_date, progress, created_at')
+      .in('project_id', ids).order('position', { ascending: true }).returns<ProjectPhaseRow[]>(),
+    supabase.from('project_submittals').select('id, project_id, status, response_due_date, submission_type')
+      .in('project_id', ids).returns<Array<ScheduleSubmittal & { project_id: string }>>(),
+    supabase.from('calendar_events').select('id, project_id, title, start_at')
+      .eq('event_type', 'milestone').in('project_id', ids).returns<Array<ScheduleMilestone & { project_id: string }>>(),
+  ]);
+
+  const group = <T extends { project_id: string }>(rows: T[] | null) => {
+    const map = new Map<string, T[]>();
+    for (const r of rows ?? []) {
+      let arr = map.get(r.project_id);
+      if (!arr) { arr = []; map.set(r.project_id, arr); }
+      arr.push(r);
+    }
+    return map;
+  };
+  const phasesBy = group(phasesRes.data);
+  const subsBy = group(subsRes.data);
+  const msBy = group(msRes.data);
+
+  const out: ScheduleHealthSummary = { ...EMPTY_SCHEDULE_HEALTH, slippingProjects: [], upcoming: [] };
+  for (const proj of projs) {
+    const sched = computeSchedule(proj, phasesBy.get(proj.id) ?? [], subsBy.get(proj.id) ?? [], msBy.get(proj.id) ?? []);
+    if (sched.health === 'on_track') out.onSchedule++;
+    else if (sched.health === 'at_risk') out.atRisk++;
+    else {
+      out.slipping++;
+      if (out.slippingProjects.length < 6) {
+        out.slippingProjects.push({ id: proj.id, project_number: proj.project_number, name: proj.name, reason: sched.healthReasons[0] ?? 'behind schedule' });
+      }
+    }
+    if (proj.workflow_state === 'awaiting_response') out.waitingClient++;
+    if ((subsBy.get(proj.id) ?? []).some((s) => s.status === 'submitted' || s.status === 'awaiting_response')) out.waitingMunicipality++;
+    if (sched.nextMilestone && sched.daysUntilNextMilestone != null && sched.daysUntilNextMilestone <= 14) {
+      out.upcomingMilestones++;
+      if (out.upcoming.length < 6) {
+        out.upcoming.push({ id: proj.id, project_number: proj.project_number, name: proj.name, label: sched.nextMilestone.label, days: sched.daysUntilNextMilestone });
+      }
+    }
+  }
+  out.upcoming.sort((a, b) => a.days - b.days);
+  return out;
 }

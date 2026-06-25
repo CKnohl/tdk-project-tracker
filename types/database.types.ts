@@ -13,7 +13,7 @@ export type ProjectPhase =
   | 'bidding' | 'construction' | 'closeout' | 'completed';
 export type WorkflowState = 'normal' | 'awaiting_response' | 'needs_follow_up' | 'urgent_follow_up';
 export type InactiveReason = 'completed' | 'lost_bid' | 'cancelled' | 'fell_through';
-export type TaskStatus = 'not_started' | 'in_progress' | 'waiting' | 'completed' | 'cancelled';
+export type TaskStatus = 'not_started' | 'in_progress' | 'waiting' | 'in_review' | 'completed' | 'cancelled';
 export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
 export type TaskRecurrence = 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
 export type SubmittalStatus =
@@ -22,7 +22,8 @@ export type SubmittalStatus =
 export type NotificationType =
   | 'task_due_tomorrow' | 'task_overdue' | 'submittal_awaiting_too_long'
   | 'project_assigned' | 'task_assigned' | 'project_updated' | 'follow_up_due'
-  | 'task_completed' | 'deadline_changed';
+  | 'task_completed' | 'deadline_changed'
+  | 'review_requested' | 'task_approved' | 'task_rejected';
 export type ActivityEntity = 'project' | 'task' | 'submittal' | 'file' | 'note' | 'contact' | 'status';
 export type ActivityAction =
   | 'created' | 'updated' | 'deleted' | 'status_changed'
@@ -53,6 +54,7 @@ export type ProjectRow = Timestamps & {
   last_activity_at: string; created_by: string | null; current_phase_name: string | null;
 };
 export type ProjectStaffRow = { project_id: string; staff_id: string; role_on_project: string | null; assigned_at: string };
+export type ProjectLeadRow = { project_id: string; staff_id: string; assigned_at: string };
 export type ProjectContactRow = Timestamps & {
   id: string; project_id: string; name: string; company: string | null; email: string | null;
   phone: string | null; role: ContactRole; notes: string | null; created_by: string | null;
@@ -62,8 +64,14 @@ export type TaskRow = Timestamps & {
   priority: TaskPriority; status: TaskStatus; due_date: string | null; start_date: string | null; completion_pct: number;
   notes: string | null; created_by: string | null; completed_at: string | null;
   recurrence: TaskRecurrence;
+  prior_status: TaskStatus | null; review_requested_at: string | null; review_requested_by: string | null;
 };
 export type TaskStaffRow = { task_id: string; staff_id: string };
+export type TaskReviewAction = 'submitted' | 'approved' | 'rejected';
+export type TaskReviewRow = {
+  id: string; task_id: string; action: TaskReviewAction; actor_id: string | null;
+  comment: string | null; prior_status: TaskStatus | null; created_at: string;
+};
 export type SubmittalRow = Timestamps & {
   id: string; project_id: string; submission_type: string; agency: string | null;
   submission_date: string | null; response_due_date: string | null; follow_up_date: string | null;
@@ -104,6 +112,7 @@ export type NotificationPreferenceRow = Timestamps & {
 };
 export type ProjectPhaseRow = {
   id: string; project_id: string; name: string; position: number; is_current: boolean; created_at: string;
+  start_date: string | null; end_date: string | null; progress: number;
 };
 export type ReportRunRow = {
   id: string; generated_by: string | null; generated_at: string;
@@ -136,9 +145,11 @@ export type Database = {
       users: TableDef<UserRow>;
       projects: TableDef<ProjectRow>;
       project_staff: TableDef<ProjectStaffRow>;
+      project_leads: TableDef<ProjectLeadRow>;
       project_contacts: TableDef<ProjectContactRow>;
       tasks: TableDef<TaskRow>;
       task_staff: TableDef<TaskStaffRow>;
+      task_reviews: TableDef<TaskReviewRow>;
       project_submittals: TableDef<SubmittalRow>;
       submittal_history: TableDef<SubmittalHistoryRow>;
       project_notes: TableDef<ProjectNoteRow>;

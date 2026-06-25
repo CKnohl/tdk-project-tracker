@@ -8,7 +8,7 @@ import { PriorityBadge } from '@/components/shared/priority-badge';
 import { StaffAvatar } from '@/components/shared/staff-avatar';
 import { TASK_STATUS, TASK_RECURRENCE } from '@/lib/constants';
 import { describeDue, formatRelative, humanize, cn } from '@/lib/utils';
-import type { TaskWithStaff, ActivityItem } from '@/lib/types';
+import type { TaskWithStaff, ActivityItem, ReviewItem } from '@/lib/types';
 
 const dueTone: Record<string, string> = {
   overdue: 'text-red-600 dark:text-red-400',
@@ -30,12 +30,14 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 export function TaskDetailDialog({
   task,
   activity,
+  reviews,
   canEdit,
   onClose,
   onEdit,
 }: {
   task: TaskWithStaff | null;
   activity: ActivityItem[];
+  reviews: ReviewItem[];
   canEdit: boolean;
   onClose: () => void;
   onEdit: (task: TaskWithStaff) => void;
@@ -88,6 +90,28 @@ export function TaskDetailDialog({
           <Row label="Notes">
             {task.notes ? <p className="whitespace-pre-wrap">{task.notes}</p> : <span className="text-muted-foreground">—</span>}
           </Row>
+          {reviews.length > 0 && (
+            <Row label="Review History">
+              <ul className="space-y-2">
+                {reviews.map((r) => (
+                  <li key={r.id} className="text-xs">
+                    <span className="font-medium text-foreground">{r.actor?.full_name ?? 'Someone'}</span>{' '}
+                    <span
+                      className={cn(
+                        r.action === 'approved' && 'text-emerald-600 dark:text-emerald-400',
+                        r.action === 'rejected' && 'text-red-600 dark:text-red-400',
+                        r.action === 'submitted' && 'text-violet-600 dark:text-violet-400',
+                      )}
+                    >
+                      {r.action === 'submitted' ? 'sent for review' : r.action === 'approved' ? 'approved' : 'requested changes'}
+                    </span>
+                    <span className="text-muted-foreground"> · {formatRelative(r.created_at)}</span>
+                    {r.comment && <p className="mt-0.5 whitespace-pre-wrap text-foreground/80">“{r.comment}”</p>}
+                  </li>
+                ))}
+              </ul>
+            </Row>
+          )}
           <Row label="History">
             {history.length === 0 ? (
               <span className="text-muted-foreground">No recent activity.</span>

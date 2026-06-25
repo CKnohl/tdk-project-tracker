@@ -11,6 +11,7 @@ import type {
   ActivityLogRow,
   NotificationRow,
   CalendarEventRow,
+  TaskReviewRow,
 } from '@/types/database.types';
 
 export interface CompanyRef {
@@ -64,6 +65,10 @@ export interface NoteItem extends ProjectNoteRow {
 }
 
 export interface ContactItem extends ProjectContactRow {}
+
+export interface ReviewItem extends TaskReviewRow {
+  actor: StaffRef | null;
+}
 
 export interface FileItem extends ProjectFileRow {
   uploader: { full_name: string | null } | null;

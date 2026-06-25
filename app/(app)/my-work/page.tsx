@@ -3,8 +3,9 @@ import { PageHeader } from '@/components/shared/page-header';
 import { EmptyState } from '@/components/shared/empty-state';
 import { Card } from '@/components/ui/card';
 import { MyWorkTabs } from '@/components/dashboard/my-work-tabs';
+import { ReviewQueue } from '@/components/dashboard/review-queue';
 import { getCurrentUser } from '@/lib/auth';
-import { getMyWork } from '@/lib/data/my-work';
+import { getMyWork, getReviewQueue } from '@/lib/data/my-work';
 import { cn } from '@/lib/utils';
 
 export const metadata = { title: 'My Work' };
@@ -25,12 +26,16 @@ function Stat({ label, value, icon: Icon, tone }: { label: string; value: number
 
 export default async function MyWorkPage() {
   const user = await getCurrentUser();
-  const data = await getMyWork(user?.staff_id ?? null);
+  const [data, reviewQueue] = await Promise.all([
+    getMyWork(user?.staff_id ?? null),
+    getReviewQueue(user ? { role: user.role, staff_id: user.staff_id } : null),
+  ]);
 
   if (!data.hasStaff) {
     return (
       <div className="space-y-6">
         <PageHeader title="My Work" description="Your personal task center." />
+        {reviewQueue.length > 0 && <ReviewQueue items={reviewQueue} />}
         <EmptyState
           icon={FolderKanban}
           title="No staff link"
@@ -43,6 +48,8 @@ export default async function MyWorkPage() {
   return (
     <div className="space-y-5">
       <PageHeader title="My Work" description="Everything assigned to you, in one place." />
+
+      {reviewQueue.length > 0 && <ReviewQueue items={reviewQueue} />}
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat label="Open tasks" value={data.tasks.length} icon={ListChecks} tone="bg-primary/10 text-primary" />

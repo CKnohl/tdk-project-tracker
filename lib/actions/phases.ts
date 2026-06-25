@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { requireManager, fail, errMessage, type ActionResult } from './_helpers';
+import { requireProjectManager, fail, errMessage, type ActionResult } from './_helpers';
 
 // Editable project timeline phases — the single source of truth for a project's
 // phases and its current phase (P4). projects.current_phase_name is a denormalized
@@ -30,7 +30,7 @@ function revalidateAll(projectId: string) {
 
 export async function addPhase(projectId: string, name: string): Promise<ActionResult> {
   try {
-    await requireManager();
+    await requireProjectManager(projectId);
     const trimmed = name.trim();
     if (trimmed.length < 2) return fail('Phase name is too short');
     const supabase = await createClient();
@@ -53,7 +53,7 @@ export async function addPhase(projectId: string, name: string): Promise<ActionR
 
 export async function renamePhase(id: string, projectId: string, name: string): Promise<ActionResult> {
   try {
-    await requireManager();
+    await requireProjectManager(projectId);
     const trimmed = name.trim();
     if (trimmed.length < 2) return fail('Phase name is too short');
     const supabase = await createClient();
@@ -69,7 +69,7 @@ export async function renamePhase(id: string, projectId: string, name: string): 
 
 export async function deletePhase(id: string, projectId: string): Promise<ActionResult> {
   try {
-    await requireManager();
+    await requireProjectManager(projectId);
     const supabase = await createClient();
     const { error } = await supabase.from('project_phases').delete().eq('id', id);
     if (error) return fail(error.message);
@@ -84,7 +84,7 @@ export async function deletePhase(id: string, projectId: string): Promise<Action
 /** Persist a new ordering. `orderedIds` is the full list of phase ids in order. */
 export async function reorderPhases(projectId: string, orderedIds: string[]): Promise<ActionResult> {
   try {
-    await requireManager();
+    await requireProjectManager(projectId);
     const supabase = await createClient();
     for (let i = 0; i < orderedIds.length; i++) {
       const { error } = await supabase
@@ -103,12 +103,35 @@ export async function reorderPhases(projectId: string, orderedIds: string[]): Pr
 
 export async function setCurrentPhase(projectId: string, id: string): Promise<ActionResult> {
   try {
-    await requireManager();
+    await requireProjectManager(projectId);
     const supabase = await createClient();
     await supabase.from('project_phases').update({ is_current: false }).eq('project_id', projectId).eq('is_current', true);
     const { error } = await supabase.from('project_phases').update({ is_current: true }).eq('id', id);
     if (error) return fail(error.message);
     await syncCurrentPhaseName(supabase, projectId);
+    revalidateAll(projectId);
+    return { ok: true };
+  } catch (e) {
+    return fail(errMessage(e));
+  }
+}
+
+/** V4.0: set a phase's schedule (start/end dates, progress %). PM+ / Lead only. */
+export async function setPhaseSchedule(
+  id: string,
+  projectId: string,
+  patch: { start_date?: string | null; end_date?: string | null; progress?: number },
+): Promise<ActionResult> {
+  try {
+    await requireProjectManager(projectId);
+    const supabase = await createClient();
+    const update: { start_date?: string | null; end_date?: string | null; progress?: number } = {};
+    if (patch.start_date !== undefined) update.start_date = patch.start_date || null;
+    if (patch.end_date !== undefined) update.end_date = patch.end_date || null;
+    if (patch.progress !== undefined) update.progress = Math.max(0, Math.min(100, Math.round(patch.progress) || 0));
+    if (Object.keys(update).length === 0) return { ok: true };
+    const { error } = await supabase.from('project_phases').update(update).eq('id', id);
+    if (error) return fail(error.message);
     revalidateAll(projectId);
     return { ok: true };
   } catch (e) {

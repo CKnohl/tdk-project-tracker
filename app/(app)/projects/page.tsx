@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { EmptyState } from '@/components/shared/empty-state';
 import { ProjectCard } from '@/components/projects/project-card';
 import { ProjectsToolbar } from '@/components/projects/projects-toolbar';
+import { ScrollRestoration } from '@/components/shared/scroll-restoration';
 import { getCurrentUser } from '@/lib/auth';
 import { canEdit } from '@/lib/permissions';
 import { getProjects, type ProjectCard as PCard, type ProjectFilters } from '@/lib/data/projects';
@@ -50,6 +51,7 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
 
   return (
     <div className="space-y-5">
+      <ScrollRestoration storageKey="tdk-projects-scroll" />
       <PageHeader title="Active Projects" description={`${projects.length} project${projects.length === 1 ? '' : 's'}`}>
         {user && canEdit(user.role) && (
           <Button asChild>

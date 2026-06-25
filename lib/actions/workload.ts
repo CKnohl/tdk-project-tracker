@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { requireManager, fail, errMessage, type ActionResult } from './_helpers';
+import { requireManager, requireProjectManager, fail, errMessage, type ActionResult } from './_helpers';
 import { notifyTaskAssigned, notifyProjectAssigned, notifyGeneralTaskAssigned } from '@/lib/notify';
 
 // Staff workload management. Project Managers + Admins only (requireManager);
@@ -109,7 +109,7 @@ export async function reassignTasks(
 /** Add a staff member to a project from their profile (no-op if already on it). */
 export async function addStaffToProject(staffId: string, projectId: string): Promise<ActionResult> {
   try {
-    const user = await requireManager();
+    const user = await requireProjectManager(projectId);
     const supabase = await createClient();
     const { data: existing } = await supabase
       .from('project_staff')
@@ -133,7 +133,7 @@ export async function addStaffToProject(staffId: string, projectId: string): Pro
 /** Remove a staff member from a project from their profile. */
 export async function removeStaffFromProject(staffId: string, projectId: string): Promise<ActionResult> {
   try {
-    await requireManager();
+    await requireProjectManager(projectId);
     const supabase = await createClient();
     const { error } = await supabase
       .from('project_staff')

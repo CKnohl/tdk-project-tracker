@@ -3,11 +3,13 @@
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Check, CalendarClock, Plus, Pencil, Trash2, ChevronUp, ChevronDown, X } from 'lucide-react';
+import { Check, Plus, Pencil, Trash2, ChevronUp, ChevronDown, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { formatDate, cn } from '@/lib/utils';
-import { addPhase, renamePhase, deletePhase, reorderPhases, setCurrentPhase } from '@/lib/actions/phases';
+import { cn } from '@/lib/utils';
+import { addPhase, renamePhase, deletePhase, reorderPhases, setCurrentPhase, setPhaseSchedule } from '@/lib/actions/phases';
+import { computeSchedule, type ScheduleMilestone } from '@/lib/schedule';
+import { ScheduleGantt } from './schedule-gantt';
 import type { ProjectListItem, SubmittalWithProject, TaskWithStaff } from '@/lib/types';
 import type { ProjectPhaseRow } from '@/types/database.types';
 
@@ -16,12 +18,14 @@ export function TimelineTab({
   phases,
   submittals,
   tasks,
+  milestones,
   canManage,
 }: {
   project: ProjectListItem;
   phases: ProjectPhaseRow[];
   submittals: SubmittalWithProject[];
   tasks: TaskWithStaff[];
+  milestones: ScheduleMilestone[];
   canManage: boolean;
 }) {
   const router = useRouter();
@@ -32,6 +36,10 @@ export function TimelineTab({
   const [editName, setEditName] = React.useState('');
 
   const currentIdx = phases.findIndex((p) => p.is_current);
+  const schedule = React.useMemo(
+    () => computeSchedule(project, phases, submittals, milestones),
+    [project, phases, submittals, milestones],
+  );
 
   async function act(p: Promise<{ ok: boolean; error?: string }>) {
     setPending(true);
@@ -60,21 +68,21 @@ export function TimelineTab({
     setEditId(null);
   }
 
-  const milestones = [
-    { label: 'Project created', date: project.created_at, kind: 'created' },
-    ...submittals
-      .filter((s) => s.response_due_date)
-      .map((s) => ({ label: `${s.submission_type} response due`, date: s.response_due_date!, kind: 'submittal' })),
-    ...tasks
-      .filter((t) => t.due_date && t.status !== 'completed' && t.status !== 'cancelled')
-      .map((t) => ({ label: t.name, date: t.due_date!, kind: 'task' })),
-    ...(project.target_completion_date
-      ? [{ label: 'Target completion', date: project.target_completion_date, kind: 'target' }]
-      : []),
-  ].sort((a, b) => (a.date < b.date ? -1 : 1));
+  const saveSchedule = (id: string, patch: { start_date?: string | null; end_date?: string | null; progress?: number }) =>
+    act(setPhaseSchedule(id, project.id, patch));
 
   return (
     <div className="space-y-6">
+      {/* ── Schedule (Gantt) ── */}
+      <div>
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-sm font-semibold">Schedule</h3>
+          <span className="text-xs text-muted-foreground">{schedule.overallProgress}% complete</span>
+        </div>
+        <ScheduleGantt schedule={schedule} tasks={tasks} />
+      </div>
+
+      {/* ── Phases (editable foundation) ── */}
       <div>
         <div className="mb-3 flex items-center justify-between">
           <h3 className="text-sm font-semibold">Phases</h3>
@@ -91,7 +99,6 @@ export function TimelineTab({
         </div>
 
         {!editMode ? (
-          /* ── Clean, presentation-friendly view ── */
           phases.length === 0 ? (
             <p className="text-sm text-muted-foreground">No phases defined.</p>
           ) : (
@@ -117,16 +124,13 @@ export function TimelineTab({
             </div>
           )
         ) : (
-          /* ── Edit mode (PM+ only) ── */
+          /* ── Edit mode (PM+ / Lead only) ── */
           <div className="space-y-1.5">
-            <p className="mb-2 text-xs text-muted-foreground">Click a phase to mark it current.</p>
+            <p className="mb-2 text-xs text-muted-foreground">Click a phase to mark it current. Set dates and progress to drive the schedule.</p>
             {phases.map((phase, i) => (
-              <div
-                key={phase.id}
-                className={cn('flex items-center gap-2 rounded-md border px-2.5 py-1.5', phase.is_current && 'border-primary bg-primary/5')}
-              >
+              <div key={phase.id} className={cn('rounded-md border px-2.5 py-1.5', phase.is_current && 'border-primary bg-primary/5')}>
                 {editId === phase.id ? (
-                  <>
+                  <div className="flex items-center gap-2">
                     <Input
                       value={editName}
                       onChange={(e) => setEditName(e.target.value)}
@@ -134,50 +138,90 @@ export function TimelineTab({
                       autoFocus
                       onKeyDown={(e) => e.key === 'Enter' && onRename(phase.id)}
                     />
-                    <Button size="icon" variant="ghost" className="h-8 w-8" disabled={pending} onClick={() => onRename(phase.id)}>
+                    <Button size="icon" variant="ghost" aria-label="Save phase name" className="h-8 w-8" disabled={pending} onClick={() => onRename(phase.id)}>
                       <Check className="h-4 w-4" />
                     </Button>
-                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setEditId(null)}>
+                    <Button size="icon" variant="ghost" aria-label="Cancel rename" className="h-8 w-8" onClick={() => setEditId(null)}>
                       <X className="h-4 w-4" />
                     </Button>
-                  </>
+                  </div>
                 ) : (
                   <>
-                    <button
-                      type="button"
-                      disabled={pending}
-                      onClick={() => act(setCurrentPhase(project.id, phase.id))}
-                      className="flex min-w-0 flex-1 items-center gap-2 text-left disabled:cursor-default"
-                    >
-                      <span
-                        className={cn(
-                          'flex h-4 w-4 shrink-0 items-center justify-center rounded-full border',
-                          phase.is_current ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground/40',
-                        )}
-                      >
-                        {phase.is_current && <Check className="h-2.5 w-2.5" />}
-                      </span>
-                      <span className={cn('truncate text-sm', phase.is_current && 'font-medium')}>{phase.name}</span>
-                    </button>
-                    <div className="flex shrink-0 items-center">
-                      <Button size="icon" variant="ghost" className="h-7 w-7" disabled={pending || i === 0} onClick={() => move(i, -1)}>
-                        <ChevronUp className="h-4 w-4" />
-                      </Button>
-                      <Button size="icon" variant="ghost" className="h-7 w-7" disabled={pending || i === phases.length - 1} onClick={() => move(i, 1)}>
-                        <ChevronDown className="h-4 w-4" />
-                      </Button>
-                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { setEditId(phase.id); setEditName(phase.name); }}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-7 w-7 text-destructive"
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
                         disabled={pending}
-                        onClick={() => { if (confirm(`Delete phase "${phase.name}"?`)) act(deletePhase(phase.id, project.id)); }}
+                        onClick={() => act(setCurrentPhase(project.id, phase.id))}
+                        className="flex min-w-0 flex-1 items-center gap-2 text-left disabled:cursor-default"
                       >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                        <span
+                          className={cn(
+                            'flex h-4 w-4 shrink-0 items-center justify-center rounded-full border',
+                            phase.is_current ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground/40',
+                          )}
+                        >
+                          {phase.is_current && <Check className="h-2.5 w-2.5" />}
+                        </span>
+                        <span className={cn('truncate text-sm', phase.is_current && 'font-medium')}>{phase.name}</span>
+                      </button>
+                      <div className="flex shrink-0 items-center">
+                        <Button size="icon" variant="ghost" aria-label="Move phase up" className="h-7 w-7" disabled={pending || i === 0} onClick={() => move(i, -1)}>
+                          <ChevronUp className="h-4 w-4" />
+                        </Button>
+                        <Button size="icon" variant="ghost" aria-label="Move phase down" className="h-7 w-7" disabled={pending || i === phases.length - 1} onClick={() => move(i, 1)}>
+                          <ChevronDown className="h-4 w-4" />
+                        </Button>
+                        <Button size="icon" variant="ghost" aria-label="Rename phase" className="h-7 w-7" onClick={() => { setEditId(phase.id); setEditName(phase.name); }}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          aria-label="Delete phase"
+                          className="h-7 w-7 text-destructive"
+                          disabled={pending}
+                          onClick={() => { if (confirm(`Delete phase "${phase.name}"?`)) act(deletePhase(phase.id, project.id)); }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Schedule fields */}
+                    <div className="mt-1.5 flex flex-wrap items-center gap-3 pl-6 text-xs text-muted-foreground">
+                      <label className="flex items-center gap-1">
+                        Start
+                        <Input
+                          type="date"
+                          defaultValue={phase.start_date ?? ''}
+                          className="h-7 w-[140px]"
+                          disabled={pending}
+                          onBlur={(e) => { if ((e.target.value || '') !== (phase.start_date ?? '')) saveSchedule(phase.id, { start_date: e.target.value || null }); }}
+                        />
+                      </label>
+                      <label className="flex items-center gap-1">
+                        End
+                        <Input
+                          type="date"
+                          defaultValue={phase.end_date ?? ''}
+                          className="h-7 w-[140px]"
+                          disabled={pending}
+                          onBlur={(e) => { if ((e.target.value || '') !== (phase.end_date ?? '')) saveSchedule(phase.id, { end_date: e.target.value || null }); }}
+                        />
+                      </label>
+                      <label className="flex items-center gap-1">
+                        Progress
+                        <Input
+                          type="number"
+                          min={0}
+                          max={100}
+                          defaultValue={phase.progress}
+                          className="h-7 w-16"
+                          disabled={pending}
+                          onBlur={(e) => { if (Number(e.target.value) !== phase.progress) saveSchedule(phase.id, { progress: Number(e.target.value) }); }}
+                        />
+                        %
+                      </label>
                     </div>
                   </>
                 )}
@@ -199,22 +243,6 @@ export function TimelineTab({
             </div>
           </div>
         )}
-      </div>
-
-      <div>
-        <h3 className="mb-3 text-sm font-semibold">Key dates</h3>
-        <ol className="relative ml-2 space-y-3 border-l pl-6">
-          {milestones.map((m, i) => (
-            <li key={i} className="relative">
-              <span className="absolute -left-[27px] top-0.5 flex h-3 w-3 items-center justify-center rounded-full border-2 border-background bg-muted-foreground" />
-              <div className="flex items-center gap-2 text-sm">
-                <CalendarClock className="h-3.5 w-3.5 text-muted-foreground" />
-                <span className="font-medium">{formatDate(m.date)}</span>
-                <span className="text-muted-foreground">{m.label}</span>
-              </div>
-            </li>
-          ))}
-        </ol>
       </div>
     </div>
   );

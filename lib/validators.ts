@@ -17,7 +17,7 @@ export const projectPhaseEnum = z.enum([
 ]);
 export const workflowStateEnum = z.enum(['normal', 'awaiting_response', 'needs_follow_up', 'urgent_follow_up']);
 export const inactiveReasonEnum = z.enum(['completed', 'lost_bid', 'cancelled', 'fell_through']);
-export const taskStatusEnum = z.enum(['not_started', 'in_progress', 'waiting', 'completed', 'cancelled']);
+export const taskStatusEnum = z.enum(['not_started', 'in_progress', 'waiting', 'in_review', 'completed', 'cancelled']);
 export const taskPriorityEnum = z.enum(['low', 'medium', 'high', 'urgent']);
 export const taskRecurrenceEnum = z.enum(['none', 'daily', 'weekly', 'monthly', 'yearly']);
 export const submittalStatusEnum = z.enum([
@@ -48,6 +48,7 @@ export const projectSchema = z
     target_completion_date: optionalDate,
     inactive_reason: inactiveReasonEnum.optional(),
     staff_ids: z.array(z.string().uuid()).default([]),
+    lead_ids: z.array(z.string().uuid()).default([]),
   })
   .refine((d) => d.status !== 'inactive' || !!d.inactive_reason, {
     message: 'Inactive projects require a reason',

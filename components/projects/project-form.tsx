@@ -30,12 +30,14 @@ export function ProjectForm({
   staff,
   project,
   assignedStaffIds = [],
+  assignedLeadIds = [],
   onSuccess,
 }: {
   companies: CompanyOption[];
   staff: StaffOption[];
   project?: ProjectListItem;
   assignedStaffIds?: string[];
+  assignedLeadIds?: string[];
   onSuccess?: (id: string) => void;
 }) {
   const router = useRouter();
@@ -55,6 +57,7 @@ export function ProjectForm({
     description: project?.description ?? '',
     scope: project?.scope ?? '',
     staff_ids: assignedStaffIds,
+    lead_ids: assignedLeadIds,
   });
 
   const set = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) =>
@@ -78,6 +81,7 @@ export function ProjectForm({
       description: form.description || undefined,
       scope: form.scope || undefined,
       staff_ids: form.staff_ids,
+      lead_ids: form.lead_ids,
     };
     const parsed = projectSchema.safeParse(input);
     if (!parsed.success) {
@@ -181,6 +185,10 @@ export function ProjectForm({
           <Input type="date" value={form.target_completion_date} onChange={(e) => set('target_completion_date', e.target.value)} />
         </Field>
       </div>
+
+      <Field label="Project Leads" hint="Leads get Project Manager permissions for this project only — their global role is unchanged.">
+        <MultiSelect options={staffOptions} selected={form.lead_ids} onChange={(v) => set('lead_ids', v)} placeholder="Add project leads" />
+      </Field>
 
       <Field label="Assigned Staff">
         <MultiSelect options={staffOptions} selected={form.staff_ids} onChange={(v) => set('staff_ids', v)} placeholder="Assign team members" />

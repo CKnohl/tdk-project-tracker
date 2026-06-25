@@ -9,7 +9,7 @@ import {
 import { MetaBadge } from '@/components/shared/meta-badge';
 import { PriorityBadge } from '@/components/shared/priority-badge';
 import { StatusRail } from '@/components/shared/status-rail';
-import { projectRailState } from '@/lib/status-rail';
+import { projectRailState, type RailState } from '@/lib/status-rail';
 import { EmptyState } from '@/components/shared/empty-state';
 import {
   SUBMITTAL_STATUS,
@@ -138,8 +138,10 @@ export function SubmittalRowItem({ submittal }: { submittal: SubmittalWithProjec
   );
 }
 
-export function ProjectRowItem({ project }: { project: ProjectListItem }) {
-  const rail = projectRailState({ status: project.status, workflow_state: project.workflow_state });
+export function ProjectRowItem({ project, railState }: { project: ProjectListItem; railState?: RailState }) {
+  // Callers can force a rail (e.g. the "Waiting on Others" widget is uniformly
+  // blue); otherwise it's derived from the project's own status/workflow.
+  const rail = railState ?? projectRailState({ status: project.status, workflow_state: project.workflow_state });
   return (
     <Link
       href={`/projects/${project.id}`}

@@ -10,7 +10,10 @@ import type {
   FileItem,
   ActivityItem,
   ProjectStaffMember,
+  StaffRef,
+  ReviewItem,
 } from '@/lib/types';
+import type { ScheduleMilestone } from '@/lib/schedule';
 import type { ProjectStatsRow, ProjectStatus, ProjectPhase, WorkflowState, ProjectPhaseRow } from '@/types/database.types';
 
 const PROJECT_SELECT =
@@ -22,7 +25,7 @@ export interface ProjectFilters {
   company?: number;
   phase?: ProjectPhase;
   workflow?: WorkflowState;
-  sort?: 'recent' | 'name' | 'number' | 'target';
+  sort?: 'recent' | 'oldest' | 'name' | 'number' | 'number_desc' | 'target';
   archived?: boolean;
 }
 
@@ -54,6 +57,12 @@ export async function getProjects(filters: ProjectFilters = {}): Promise<Project
       break;
     case 'number':
       query = query.order('project_number', { ascending: true });
+      break;
+    case 'number_desc':
+      query = query.order('project_number', { ascending: false });
+      break;
+    case 'oldest':
+      query = query.order('last_activity_at', { ascending: true });
       break;
     case 'target':
       query = query.order('target_completion_date', { ascending: true, nullsFirst: false });
@@ -87,6 +96,9 @@ export interface ProjectDetail {
   activity: ActivityItem[];
   stats: ProjectStatsRow | null;
   phases: ProjectPhaseRow[];
+  leads: StaffRef[];
+  taskReviews: Record<string, ReviewItem[]>;
+  milestones: ScheduleMilestone[];
 }
 
 // Wrapped in React cache() so the detail route's generateMetadata + page body
@@ -102,7 +114,7 @@ export const getProjectDetail = cache(async (id: string): Promise<ProjectDetail 
     .maybeSingle();
   if (!project) return null;
 
-  const [staff, tasks, submittals, contacts, notes, files, activity, stats, phases] = await Promise.all([
+  const [staff, tasks, submittals, contacts, notes, files, activity, stats, phases, leads, milestones] = await Promise.all([
     supabase
       .from('project_staff')
       .select('role_on_project, staff:staff(id,full_name,initials)')
@@ -152,6 +164,18 @@ export const getProjectDetail = cache(async (id: string): Promise<ProjectDetail 
       .eq('project_id', id)
       .order('position', { ascending: true })
       .returns<ProjectPhaseRow[]>(),
+    supabase
+      .from('project_leads')
+      .select('staff:staff(id,full_name,initials)')
+      .eq('project_id', id)
+      .returns<{ staff: StaffRef | null }[]>(),
+    supabase
+      .from('calendar_events')
+      .select('id, title, start_at')
+      .eq('project_id', id)
+      .eq('event_type', 'milestone')
+      .order('start_at', { ascending: true })
+      .returns<ScheduleMilestone[]>(),
   ]);
 
   // Surface query failures instead of silently rendering an empty tab. A task
@@ -173,6 +197,19 @@ export const getProjectDetail = cache(async (id: string): Promise<ProjectDetail 
     for (const h of history ?? []) (submittalHistory[h.submittal_id] ??= []).push(h);
   }
 
+  // Review history (V3.2 Phase B), newest-first, grouped by task.
+  const taskIds = (tasks.data ?? []).map((t) => t.id);
+  const taskReviews: Record<string, ReviewItem[]> = {};
+  if (taskIds.length) {
+    const { data: reviews } = await supabase
+      .from('task_reviews')
+      .select('id,task_id,action,actor_id,comment,prior_status,created_at,actor:staff(id,full_name,initials)')
+      .in('task_id', taskIds)
+      .order('created_at', { ascending: false })
+      .returns<ReviewItem[]>();
+    for (const r of reviews ?? []) (taskReviews[r.task_id] ??= []).push(r);
+  }
+
   return {
     project,
     staff: staff.data ?? [],
@@ -185,5 +222,8 @@ export const getProjectDetail = cache(async (id: string): Promise<ProjectDetail 
     activity: activity.data ?? [],
     stats: stats.data ?? null,
     phases: phases.data ?? [],
+    leads: (leads.data ?? []).map((l) => l.staff).filter(Boolean) as StaffRef[],
+    taskReviews,
+    milestones: milestones.data ?? [],
   };
 });

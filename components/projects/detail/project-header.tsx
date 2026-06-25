@@ -42,6 +42,7 @@ export function ProjectHeader({
   project,
   phases,
   assignedStaffIds,
+  assignedLeadIds,
   companies,
   staff,
   canEdit,
@@ -50,6 +51,7 @@ export function ProjectHeader({
   project: ProjectListItem;
   phases: ProjectPhaseRow[];
   assignedStaffIds: string[];
+  assignedLeadIds: string[];
   companies: CompanyOption[];
   staff: StaffOption[];
   canEdit: boolean;
@@ -80,9 +82,13 @@ export function ProjectHeader({
 
   return (
     <div className="space-y-3">
-      <Link href={backHref} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ChevronLeft className="h-4 w-4" /> Projects
-      </Link>
+      <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-sm text-muted-foreground">
+        <Link href={backHref} className="inline-flex items-center gap-1 hover:text-foreground">
+          <ChevronLeft className="h-4 w-4" /> Projects
+        </Link>
+        <span aria-hidden className="text-muted-foreground/40">/</span>
+        <span className="font-mono text-foreground/80">{project.project_number}</span>
+      </nav>
 
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
@@ -122,7 +128,7 @@ export function ProjectHeader({
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon" className="h-9 w-9"><MoreHorizontal className="h-4 w-4" /></Button>
+                <Button variant="outline" size="icon" aria-label="More project actions" className="h-9 w-9"><MoreHorizontal className="h-4 w-4" /></Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-52">
                 <DropdownMenuLabel>Status</DropdownMenuLabel>
@@ -171,6 +177,7 @@ export function ProjectHeader({
             staff={staff}
             project={project}
             assignedStaffIds={assignedStaffIds}
+            assignedLeadIds={assignedLeadIds}
             onSuccess={() => { setEditing(false); router.refresh(); }}
           />
         </DialogContent>

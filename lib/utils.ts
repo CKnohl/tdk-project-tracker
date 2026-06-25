@@ -1,7 +1,6 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import {
-  format,
   formatDistanceToNow,
   isToday,
   isTomorrow,
@@ -13,27 +12,49 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+// The office runs on Eastern time. Every displayed date/time is rendered in
+// America/New_York (DST-aware) via Intl, regardless of the server's timezone
+// (Vercel runs UTC) — so there are no surprise UTC offsets in the UI or reports.
+const TZ = 'America/New_York';
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+const DATE_OPTS: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' };
+const TIME_OPTS: Intl.DateTimeFormatOptions = { hour: 'numeric', minute: '2-digit' };
+
 function toDate(value: string | Date | null | undefined): Date | null {
   if (!value) return null;
   return typeof value === 'string' ? parseISO(value) : value;
 }
 
-/** Short date e.g. "Jul 2, 2026". */
+function intl(d: Date, opts: Intl.DateTimeFormatOptions, tz: string) {
+  return new Intl.DateTimeFormat('en-US', { timeZone: tz, ...opts }).format(d);
+}
+
+/**
+ * Short date e.g. "Jul 2, 2026" (Eastern). Date-only values (yyyy-MM-dd, e.g.
+ * due/start dates) are floating calendar dates with no instant — pin them to
+ * UTC noon so no timezone can shift the day. Timestamps are real instants in ET.
+ */
 export function formatDate(value: string | Date | null | undefined) {
+  if (typeof value === 'string' && DATE_ONLY.test(value)) {
+    const [y, m, d] = value.split('-').map(Number);
+    return intl(new Date(Date.UTC(y, m - 1, d, 12)), DATE_OPTS, 'UTC');
+  }
   const d = toDate(value);
-  return d ? format(d, 'MMM d, yyyy') : '—';
+  return d ? intl(d, DATE_OPTS, TZ) : '—';
 }
 
-/** Date + time e.g. "Jul 2, 2026 3:30 PM". */
+/** Date + time e.g. "Jul 2, 2026, 3:30 PM" (Eastern). */
 export function formatDateTime(value: string | Date | null | undefined) {
+  if (typeof value === 'string' && DATE_ONLY.test(value)) return formatDate(value);
   const d = toDate(value);
-  return d ? format(d, 'MMM d, yyyy h:mm a') : '—';
+  if (!d) return '—';
+  return `${formatDate(value)}, ${intl(d, TIME_OPTS, TZ)}`;
 }
 
-/** Time only e.g. "3:30 PM". */
+/** Time only e.g. "3:30 PM" (Eastern). */
 export function formatTime(value: string | Date | null | undefined) {
   const d = toDate(value);
-  return d ? format(d, 'h:mm a') : '';
+  return d ? intl(d, TIME_OPTS, TZ) : '';
 }
 
 /** "in 3 days" / "2 days ago". */

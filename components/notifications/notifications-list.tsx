@@ -26,6 +26,9 @@ const ICONS: Record<NotificationType, React.ComponentType<{ className?: string }
   follow_up_due: Clock,
   task_completed: CircleCheckBig,
   deadline_changed: CalendarClock,
+  review_requested: Clock,
+  task_approved: CircleCheckBig,
+  task_rejected: AlertTriangle,
 };
 
 const TYPE_LABEL: Record<NotificationType, string> = {
@@ -38,6 +41,9 @@ const TYPE_LABEL: Record<NotificationType, string> = {
   follow_up_due: 'Needs attention',
   task_completed: 'Task completed',
   deadline_changed: 'Deadline changed',
+  review_requested: 'Review requested',
+  task_approved: 'Task approved',
+  task_rejected: 'Changes requested',
 };
 
 const ALL = '__all__';
@@ -126,10 +132,10 @@ export function NotificationsList({ items }: { items: NotificationItem[] }) {
                   <p className="text-xs text-muted-foreground">{formatRelative(n.created_at)}</p>
                 </div>
                 <div className="flex shrink-0 gap-1">
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => toggle(n)} title={n.is_read ? 'Mark unread' : 'Mark read'}>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => toggle(n)} aria-label={n.is_read ? 'Mark unread' : 'Mark read'} title={n.is_read ? 'Mark unread' : 'Mark read'}>
                     <CheckCheck className={cn('h-4 w-4', n.is_read && 'text-muted-foreground')} />
                   </Button>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => remove(n)}>
+                  <Button variant="ghost" size="icon" aria-label="Delete notification" className="h-7 w-7 text-destructive" onClick={() => remove(n)}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>

@@ -126,7 +126,7 @@ export function StaffManager({ staff, companies }: { staff: StaffVM[]; companies
               <TableCell>{s.user_id ? <Link2 className="h-4 w-4 text-emerald-600" /> : <span className="text-xs text-muted-foreground">—</span>}</TableCell>
               <TableCell className="text-center"><Switch checked={s.is_active} onCheckedChange={(c) => toggle(s, c)} /></TableCell>
               <TableCell className="text-right">
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditing(s)}><Pencil className="h-4 w-4" /></Button>
+                <Button variant="ghost" size="icon" aria-label="Edit staff member" className="h-8 w-8" onClick={() => setEditing(s)}><Pencil className="h-4 w-4" /></Button>
               </TableCell>
             </TableRow>
           ))}

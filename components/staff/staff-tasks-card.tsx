@@ -120,6 +120,7 @@ export function StaffTasksCard({
                     <Button
                       variant="ghost"
                       size="icon"
+                      aria-label="Remove assignment"
                       className="h-7 w-7 text-muted-foreground"
                       onClick={() => remove(t.id)}
                       title="Remove assignment"

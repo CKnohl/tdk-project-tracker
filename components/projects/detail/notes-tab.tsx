@@ -64,7 +64,7 @@ export function NotesTab({
               <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
                 <span>{n.author?.full_name ?? 'Unknown'} · {formatDateTime(n.created_at)}</span>
                 {canEdit && (
-                  <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => remove(n)}>
+                  <Button variant="ghost" size="icon" aria-label="Delete note" className="h-6 w-6 text-destructive" onClick={() => remove(n)}>
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 )}

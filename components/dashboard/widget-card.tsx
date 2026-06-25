@@ -5,24 +5,25 @@ import { cn } from '@/lib/utils';
 
 type Accent = 'red' | 'orange' | 'yellow' | 'blue' | 'none';
 
+// `card` carries a subtle full border plus a prominent colored left accent rail.
 const ACCENT: Record<Accent, { card: string; icon: string; count: string }> = {
   red: {
-    card: 'border-red-200 dark:border-red-900/70',
+    card: 'border-red-200 dark:border-red-900/70 border-l-4 border-l-red-500',
     icon: 'text-red-600 dark:text-red-400',
     count: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300',
   },
   orange: {
-    card: 'border-orange-200 dark:border-orange-900/70',
+    card: 'border-orange-200 dark:border-orange-900/70 border-l-4 border-l-orange-500',
     icon: 'text-orange-600 dark:text-orange-400',
     count: 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300',
   },
   yellow: {
-    card: 'border-amber-300 dark:border-amber-900/70',
+    card: 'border-amber-300 dark:border-amber-900/70 border-l-4 border-l-amber-500',
     icon: 'text-amber-600 dark:text-amber-400',
     count: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
   },
   blue: {
-    card: 'border-sky-300 dark:border-sky-900/70',
+    card: 'border-sky-300 dark:border-sky-900/70 border-l-4 border-l-sky-500',
     icon: 'text-sky-600 dark:text-sky-400',
     count: 'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300',
   },

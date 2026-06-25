@@ -2,7 +2,6 @@ import { endOfWeek, format } from 'date-fns';
 import { createClient } from '@/lib/supabase/server';
 import type {
   ProjectStatus,
-  StaffWorkloadRow,
   TaskPriority,
   TaskStatus,
   WorkflowState,
@@ -12,10 +11,117 @@ import type { SubmittalWithProject } from '@/lib/types';
 const iso = (d: Date) => format(d, 'yyyy-MM-dd');
 const OPEN_TASK = '(completed,cancelled)';
 
-export async function getStaffWithWorkload(): Promise<StaffWorkloadRow[]> {
+export interface StaffDashboardCard {
+  id: string;
+  full_name: string;
+  initials: string | null;
+  activeProjects: number;
+  generalTasks: number;
+  reviewQueue: number; // in_review tasks on projects they PM or lead
+  openTasks: number; // workload
+  overdueTasks: number;
+  dueThisWeek: number;
+  completionRate: number; // 0–100 of non-cancelled assigned tasks
+  pmCount: number; // active projects they manage
+  leadCount: number; // projects they lead
+}
+
+/**
+ * Management-dashboard metrics for every active staff member. A handful of
+ * set-based reads aggregated in memory — no per-staff fan-out, no new view.
+ */
+export async function getStaffDashboard(): Promise<StaffDashboardCard[]> {
   const supabase = await createClient();
-  const { data } = await supabase.from('v_staff_workload').select('*').order('full_name');
-  return data ?? [];
+  const today = new Date();
+  const todayStr = iso(today);
+  const weekEndStr = iso(endOfWeek(today, { weekStartsOn: 1 }));
+
+  const [staffRes, taskRes, projStaffRes, projectsRes, leadRes, reviewRes] = await Promise.all([
+    supabase.from('staff').select('id, full_name, initials').eq('is_active', true).order('full_name')
+      .returns<{ id: string; full_name: string; initials: string | null }[]>(),
+    supabase.from('task_staff').select('staff_id, task:tasks(status, due_date, project_id)')
+      .returns<{ staff_id: string; task: { status: TaskStatus; due_date: string | null; project_id: string | null } | null }[]>(),
+    supabase.from('project_staff').select('staff_id, project:projects(status)')
+      .returns<{ staff_id: string; project: { status: ProjectStatus } | null }[]>(),
+    supabase.from('projects').select('id, project_manager_id, status')
+      .returns<{ id: string; project_manager_id: string | null; status: ProjectStatus }[]>(),
+    supabase.from('project_leads').select('staff_id, project_id')
+      .returns<{ staff_id: string; project_id: string }[]>(),
+    supabase.from('tasks').select('id, project_id').eq('status', 'in_review')
+      .returns<{ id: string; project_id: string | null }[]>(),
+  ]);
+
+  const cards = new Map<string, StaffDashboardCard>();
+  for (const s of staffRes.data ?? []) {
+    cards.set(s.id, {
+      id: s.id, full_name: s.full_name, initials: s.initials,
+      activeProjects: 0, generalTasks: 0, reviewQueue: 0, openTasks: 0,
+      overdueTasks: 0, dueThisWeek: 0, completionRate: 0, pmCount: 0, leadCount: 0,
+    });
+  }
+
+  // Tasks → workload / overdue / due-week / general / completion rate.
+  const tally = new Map<string, { done: number; countable: number }>();
+  for (const row of taskRes.data ?? []) {
+    const c = cards.get(row.staff_id);
+    const t = row.task;
+    if (!c || !t || t.status === 'cancelled') continue;
+    const agg = tally.get(row.staff_id) ?? { done: 0, countable: 0 };
+    agg.countable++;
+    if (t.status === 'completed') {
+      agg.done++;
+    } else {
+      c.openTasks++;
+      if (t.project_id === null) c.generalTasks++;
+      if (t.due_date && t.due_date < todayStr) c.overdueTasks++;
+      else if (t.due_date && t.due_date >= todayStr && t.due_date <= weekEndStr) c.dueThisWeek++;
+    }
+    tally.set(row.staff_id, agg);
+  }
+  for (const [sid, agg] of tally) {
+    const c = cards.get(sid);
+    if (c) c.completionRate = agg.countable ? Math.round((agg.done / agg.countable) * 100) : 0;
+  }
+
+  // Active project membership.
+  for (const row of projStaffRes.data ?? []) {
+    const c = cards.get(row.staff_id);
+    if (c && row.project?.status === 'active') c.activeProjects++;
+  }
+
+  // PM mapping (+ count of active projects managed).
+  const pmByProject = new Map<string, string | null>();
+  for (const p of projectsRes.data ?? []) {
+    pmByProject.set(p.id, p.project_manager_id);
+    if (p.project_manager_id && p.status === 'active') {
+      const c = cards.get(p.project_manager_id);
+      if (c) c.pmCount++;
+    }
+  }
+
+  // Lead mapping (+ count).
+  const leadProjects = new Map<string, Set<string>>();
+  for (const row of leadRes.data ?? []) {
+    const c = cards.get(row.staff_id);
+    if (c) c.leadCount++;
+    let set = leadProjects.get(row.staff_id);
+    if (!set) { set = new Set(); leadProjects.set(row.staff_id, set); }
+    set.add(row.project_id);
+  }
+
+  // Review queue: in_review tasks on projects each person manages or leads.
+  const inReview = reviewRes.data ?? [];
+  for (const c of cards.values()) {
+    const leads = leadProjects.get(c.id);
+    let count = 0;
+    for (const t of inReview) {
+      if (!t.project_id) continue;
+      if (pmByProject.get(t.project_id) === c.id || leads?.has(t.project_id)) count++;
+    }
+    c.reviewQueue = count;
+  }
+
+  return [...cards.values()];
 }
 
 export interface StaffMember {

@@ -132,10 +132,10 @@ export function GeneralTasksView({
                   )}
                   {canEdit && (
                     <>
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditing(task)}>
+                      <Button variant="ghost" size="icon" aria-label="Edit task" className="h-8 w-8" onClick={() => setEditing(task)}>
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => onDelete(task)}>
+                      <Button variant="ghost" size="icon" aria-label="Delete task" className="h-8 w-8 text-destructive" onClick={() => onDelete(task)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </>
@@ -157,6 +157,7 @@ export function GeneralTasksView({
       <TaskDetailDialog
         task={viewing}
         activity={activity}
+        reviews={[]}
         canEdit={canEdit}
         onClose={() => setViewing(null)}
         onEdit={(t) => setEditing(t)}

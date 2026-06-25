@@ -14,6 +14,9 @@ const ALL = '__all__';
 /** sessionStorage key holding the last /projects query string (incl. leading "?"). */
 export const PROJECTS_QUERY_KEY = 'tdk-projects-query';
 
+/** localStorage key remembering the user's last project sort across visits. */
+const SORT_KEY = 'tdk-projects-sort';
+
 export function ProjectsToolbar({ companies }: { companies: CompanyOption[] }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -48,6 +51,18 @@ export function ProjectsToolbar({ companies }: { companies: CompanyOption[] }) {
       /* storage unavailable — non-critical */
     }
   }, [params]);
+
+  // Restore the remembered sort on a fresh visit (when the URL has no sort yet).
+  React.useEffect(() => {
+    if (params.get('sort')) return;
+    try {
+      const saved = localStorage.getItem(SORT_KEY);
+      if (saved && saved !== 'recent') update('sort', saved);
+    } catch {
+      /* storage unavailable */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const val = (key: string) => params.get(key) ?? ALL;
   const hasFilters = ['status', 'company', 'phase', 'workflow', 'group', 'sort', 'q'].some((k) => params.get(k));
@@ -110,13 +125,20 @@ export function ProjectsToolbar({ companies }: { companies: CompanyOption[] }) {
         </SelectContent>
       </Select>
 
-      <Select value={params.get('sort') ?? 'recent'} onValueChange={(v) => update('sort', v === 'recent' ? null : v)}>
-        <SelectTrigger className="w-[150px]"><SelectValue placeholder="Sort" /></SelectTrigger>
+      <Select
+        value={params.get('sort') ?? 'recent'}
+        onValueChange={(v) => {
+          try { localStorage.setItem(SORT_KEY, v); } catch { /* non-critical */ }
+          update('sort', v === 'recent' ? null : v);
+        }}
+      >
+        <SelectTrigger className="w-[180px]"><SelectValue placeholder="Sort" /></SelectTrigger>
         <SelectContent>
           <SelectItem value="recent">Recently updated</SelectItem>
-          <SelectItem value="name">Name (A–Z)</SelectItem>
-          <SelectItem value="number">Project number</SelectItem>
-          <SelectItem value="target">Target date</SelectItem>
+          <SelectItem value="oldest">Oldest updated</SelectItem>
+          <SelectItem value="number">Project # (ascending)</SelectItem>
+          <SelectItem value="number_desc">Project # (descending)</SelectItem>
+          <SelectItem value="name">Project name</SelectItem>
         </SelectContent>
       </Select>
 

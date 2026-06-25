@@ -87,6 +87,7 @@ export function StaffProjectsCard({
                   <Button
                     variant="ghost"
                     size="icon"
+                    aria-label="Remove from project"
                     className="h-7 w-7 text-muted-foreground"
                     onClick={() => remove(p.project_id)}
                     title="Remove from project"

@@ -39,13 +39,41 @@ async function syncProjectStaff(
   const toRemove = [...current].filter((s) => !desired.has(s));
 
   if (toAdd.length > 0) {
-    await supabase.from('project_staff').insert(toAdd.map((staff_id) => ({ project_id: projectId, staff_id })));
+    // Surface write failures (e.g. an RLS reject) instead of returning a false
+    // "saved" — a swallowed error here is exactly how staff edits silently fail.
+    const { error } = await supabase
+      .from('project_staff')
+      .insert(toAdd.map((staff_id) => ({ project_id: projectId, staff_id })));
+    if (error) throw new Error(`Couldn't assign staff: ${error.message}`);
     await notifyProjectAssigned({ projectId, projectName: projectName ?? proj?.name ?? null, staffIds: toAdd, actorId });
   }
   if (toRemove.length > 0) {
-    await supabase.from('project_staff').delete().eq('project_id', projectId).in('staff_id', toRemove);
+    const { error } = await supabase.from('project_staff').delete().eq('project_id', projectId).in('staff_id', toRemove);
+    if (error) throw new Error(`Couldn't remove staff: ${error.message}`);
   }
   return { added: toAdd, removed: toRemove };
+}
+
+/**
+ * Reconcile project_leads to `leadIds`. Callers also fold leadIds into the
+ * project_staff set (via syncProjectStaff), so a Lead is always a project member
+ * and inherits the existing member-level RLS — that's how a Lead gets
+ * project-manager powers for that project without a global role change.
+ */
+async function syncProjectLeads(supabase: DB, projectId: string, leadIds: string[]): Promise<void> {
+  const { data: existing } = await supabase.from('project_leads').select('staff_id').eq('project_id', projectId);
+  const current = new Set((existing ?? []).map((r) => r.staff_id));
+  const desired = new Set(leadIds);
+  const toAdd = [...desired].filter((s) => !current.has(s));
+  const toRemove = [...current].filter((s) => !desired.has(s));
+  if (toAdd.length > 0) {
+    const { error } = await supabase.from('project_leads').insert(toAdd.map((staff_id) => ({ project_id: projectId, staff_id })));
+    if (error) throw new Error(`Couldn't save project leads: ${error.message}`);
+  }
+  if (toRemove.length > 0) {
+    const { error } = await supabase.from('project_leads').delete().eq('project_id', projectId).in('staff_id', toRemove);
+    if (error) throw new Error(`Couldn't update project leads: ${error.message}`);
+  }
 }
 
 export async function createProject(input: ProjectInput): Promise<ActionResult> {
@@ -88,8 +116,10 @@ export async function createProject(input: ProjectInput): Promise<ActionResult> 
       })),
     );
 
-    // Assign staff (always includes the PM) via the shared reconciler.
-    await syncProjectStaff(supabase, data.id, v.staff_ids, user.id, v.name);
+    // Project Leads (P3.2) + assigned staff. Leads are folded into the staff set
+    // so they become project members and inherit member-level RLS.
+    await syncProjectLeads(supabase, data.id, v.lead_ids);
+    await syncProjectStaff(supabase, data.id, [...new Set([...v.staff_ids, ...v.lead_ids])], user.id, v.name);
 
     revalidatePath('/projects');
     revalidatePath('/dashboard');
@@ -134,7 +164,9 @@ export async function updateProject(id: string, input: ProjectInput): Promise<Ac
 
     // P2 fix: the edit form's Assigned Staff now actually persists — same shared
     // reconciler as the staff page. P3: the (possibly new) PM is auto-included.
-    await syncProjectStaff(supabase, id, v.staff_ids, user.id, v.name);
+    // V3.2: Project Leads are reconciled and folded into the member set.
+    await syncProjectLeads(supabase, id, v.lead_ids);
+    await syncProjectStaff(supabase, id, [...new Set([...v.staff_ids, ...v.lead_ids])], user.id, v.name);
 
     await notifyProjectTeam({ projectId: id, type: 'project_updated', title: 'Project updated', excludeUserId: user.id });
 

@@ -69,6 +69,11 @@ async function projectStaffUserIds(admin: Admin, projectId: string): Promise<str
   return userIdsForStaff(admin, (data ?? []).map((r) => r.staff_id));
 }
 
+async function projectLeadUserIds(admin: Admin, projectId: string): Promise<string[]> {
+  const { data } = await admin.from('project_leads').select('staff_id').eq('project_id', projectId);
+  return userIdsForStaff(admin, (data ?? []).map((r) => r.staff_id));
+}
+
 async function hydrate(admin: Admin, userIds: string[]): Promise<Recipient[]> {
   const ids = [...new Set(userIds.filter(Boolean))];
   if (ids.length === 0) return [];
@@ -447,6 +452,80 @@ export async function notifyProjectTeam(opts: {
       entityType: 'project',
       entityId: opts.projectId,
       // No email mapping for these types -> in-app only.
+    });
+  } catch {
+    // best-effort
+  }
+}
+
+/**
+ * Task sent for review -> ONLY the project's Manager + Project Leads. No staff,
+ * no admins, no global fan-out (V3.2 Phase B). In-app only.
+ */
+export async function notifyReviewRequested(opts: {
+  taskId: string; taskName: string; projectId: string; actorId?: string | null;
+}): Promise<void> {
+  try {
+    const admin = createAdminClient();
+    const [pm, leads] = await Promise.all([
+      projectManagerUserId(admin, opts.projectId),
+      projectLeadUserIds(admin, opts.projectId),
+    ]);
+    const recipients = [...leads];
+    if (pm) recipients.push(pm);
+    await dispatch(admin, {
+      type: 'review_requested',
+      recipientUserIds: recipients,
+      excludeUserIds: [opts.actorId],
+      title: 'Task ready for review',
+      body: opts.taskName,
+      projectId: opts.projectId,
+      entityType: 'task',
+      entityId: opts.taskId,
+    });
+  } catch {
+    // best-effort
+  }
+}
+
+/** Task approved -> the original assignee(s). In-app only. */
+export async function notifyTaskApproved(opts: {
+  taskId: string; taskName: string; projectId: string; assigneeStaffIds: string[]; actorId?: string | null;
+}): Promise<void> {
+  try {
+    const admin = createAdminClient();
+    const recipients = await userIdsForStaff(admin, opts.assigneeStaffIds);
+    await dispatch(admin, {
+      type: 'task_approved',
+      recipientUserIds: recipients,
+      excludeUserIds: [opts.actorId],
+      title: 'Task approved',
+      body: opts.taskName,
+      projectId: opts.projectId,
+      entityType: 'task',
+      entityId: opts.taskId,
+    });
+  } catch {
+    // best-effort
+  }
+}
+
+/** Task rejected -> the original assignee(s), with the reviewer's comment. In-app only. */
+export async function notifyTaskRejected(opts: {
+  taskId: string; taskName: string; projectId: string; assigneeStaffIds: string[]; comment: string; actorId?: string | null;
+}): Promise<void> {
+  try {
+    const admin = createAdminClient();
+    const recipients = await userIdsForStaff(admin, opts.assigneeStaffIds);
+    await dispatch(admin, {
+      type: 'task_rejected',
+      recipientUserIds: recipients,
+      excludeUserIds: [opts.actorId],
+      title: 'Changes requested',
+      body: `${opts.taskName} — ${opts.comment}`,
+      projectId: opts.projectId,
+      entityType: 'task',
+      entityId: opts.taskId,
     });
   } catch {
     // best-effort

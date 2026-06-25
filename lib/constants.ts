@@ -55,6 +55,7 @@ export const TASK_STATUS: Record<TaskStatus, Meta<TaskStatus>> = {
   not_started: { value: 'not_started', label: 'Not Started', tone: 'slate' },
   in_progress: { value: 'in_progress', label: 'In Progress', tone: 'blue' },
   waiting: { value: 'waiting', label: 'Waiting', tone: 'yellow' },
+  in_review: { value: 'in_review', label: 'Waiting for Review', tone: 'purple' },
   completed: { value: 'completed', label: 'Completed', tone: 'green' },
   cancelled: { value: 'cancelled', label: 'Cancelled', tone: 'gray' },
 };

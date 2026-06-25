@@ -10,16 +10,17 @@ import {
   CompletedTaskRow,
   WidgetList,
 } from '@/components/dashboard/rows';
+import { ScheduleHealth } from '@/components/dashboard/schedule-health';
 import { getCurrentUser } from '@/lib/auth';
 import { canManageProjects } from '@/lib/permissions';
-import { getDashboardData } from '@/lib/data/dashboard';
+import { getDashboardData, getScheduleHealth } from '@/lib/data/dashboard';
 import { GenerateReportButton } from '@/components/reports/generate-report-button';
 
 export const metadata = { title: 'Dashboard' };
 
 export default async function DashboardPage() {
   const user = await getCurrentUser();
-  const data = await getDashboardData();
+  const [data, scheduleHealth] = await Promise.all([getDashboardData(), getScheduleHealth()]);
 
   const firstName = user?.full_name?.split(' ')[0] ?? 'there';
   const canReport = canManageProjects(user?.role);
@@ -51,13 +52,16 @@ export default async function DashboardPage() {
 
       {/* Secondary — where projects stand */}
       <div className="grid gap-4 lg:grid-cols-2">
-        <WidgetCard title="Needs Attention" icon={BellRing} accent="yellow" count={data.followUp.length} href="/projects?workflow=needs_follow_up">
+        <WidgetCard title="Needs Attention" icon={BellRing} accent="orange" count={data.followUp.length} href="/projects?workflow=needs_follow_up">
           <WidgetList items={data.followUp} max={8} emptyTitle="Nothing needs attention" emptyIcon={BellRing} render={(p) => <FollowUpRow key={p.id} project={p} />} />
         </WidgetCard>
         <WidgetCard title="Waiting on Others" icon={Clock} accent="blue" count={data.counts.awaiting} href="/projects?workflow=awaiting_response">
-          <WidgetList items={data.awaitingProjects} max={8} emptyTitle="Not waiting on anyone" emptyIcon={Clock} render={(p) => <ProjectRowItem key={p.id} project={p} />} />
+          <WidgetList items={data.awaitingProjects} max={8} emptyTitle="Not waiting on anyone" emptyIcon={Clock} render={(p) => <ProjectRowItem key={p.id} project={p} railState="waiting" />} />
         </WidgetCard>
       </div>
+
+      {/* Project schedule health (V4.0) */}
+      <ScheduleHealth data={scheduleHealth} />
 
       {/* Bottom — operational record */}
       <WidgetCard title="Recently Completed Tasks" icon={CircleCheckBig} count={data.recentlyCompleted.length}>
