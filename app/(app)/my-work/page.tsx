@@ -4,7 +4,9 @@ import { EmptyState } from '@/components/shared/empty-state';
 import { Card } from '@/components/ui/card';
 import { MyWorkTabs } from '@/components/dashboard/my-work-tabs';
 import { ReviewQueue } from '@/components/dashboard/review-queue';
+import { SelfReportButton } from '@/components/reports/self-report-button';
 import { getCurrentUser } from '@/lib/auth';
+import { rankOf } from '@/lib/permissions';
 import { getMyWork, getReviewQueue } from '@/lib/data/my-work';
 import { cn } from '@/lib/utils';
 
@@ -45,9 +47,13 @@ export default async function MyWorkPage() {
     );
   }
 
+  const canSelfReport = !!user && !!user.staff_id && rankOf(user.role) >= 20;
+
   return (
     <div className="space-y-5">
-      <PageHeader title="My Work" description="Everything assigned to you, in one place." />
+      <PageHeader title="My Work" description="Everything assigned to you, in one place.">
+        {canSelfReport && <SelfReportButton />}
+      </PageHeader>
 
       {reviewQueue.length > 0 && <ReviewQueue items={reviewQueue} />}
 

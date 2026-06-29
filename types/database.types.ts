@@ -117,7 +117,7 @@ export type ProjectPhaseRow = {
 export type ReportRunRow = {
   id: string; generated_by: string | null; generated_at: string;
   report_type: string; pdf_path: string | null; summary: string | null;
-  snapshot: Json; created_at: string;
+  snapshot: Json; created_at: string; subject_staff_id: string | null;
 };
 
 export type CalendarFeedRow = {
@@ -169,7 +169,9 @@ export type Database = {
       v_staff_workload: ViewDef<StaffWorkloadRow>;
       v_project_stats: ViewDef<ProjectStatsRow>;
     };
-    Functions: { [_ in never]: never };
+    Functions: {
+      transfer_staff_ownership: { Args: { p_from: string; p_to: string }; Returns: undefined };
+    };
     Enums: {
       project_status: ProjectStatus; project_phase: ProjectPhase; workflow_state: WorkflowState;
       inactive_reason: InactiveReason; task_status: TaskStatus; task_priority: TaskPriority;

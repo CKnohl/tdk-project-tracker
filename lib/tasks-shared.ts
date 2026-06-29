@@ -19,8 +19,17 @@ export async function syncTaskStaff(
   const next = new Set(staffIds);
   const toAdd = staffIds.filter((s) => !current.has(s));
   const toRemove = [...current].filter((s) => !next.has(s));
-  if (toAdd.length) await client.from('task_staff').insert(toAdd.map((staff_id) => ({ task_id: taskId, staff_id })));
-  if (toRemove.length) await client.from('task_staff').delete().eq('task_id', taskId).in('staff_id', toRemove);
+  // Surface write failures (e.g. an RLS reject) instead of returning a false
+  // "saved" — mirrors syncProjectStaff. A swallowed error here is exactly how an
+  // assignment silently fails while the user is told it worked.
+  if (toAdd.length) {
+    const { error } = await client.from('task_staff').insert(toAdd.map((staff_id) => ({ task_id: taskId, staff_id })));
+    if (error) throw new Error(`Couldn't assign staff to the task: ${error.message}`);
+  }
+  if (toRemove.length) {
+    const { error } = await client.from('task_staff').delete().eq('task_id', taskId).in('staff_id', toRemove);
+    if (error) throw new Error(`Couldn't update task assignees: ${error.message}`);
+  }
   return { added: toAdd, removed: toRemove };
 }
 

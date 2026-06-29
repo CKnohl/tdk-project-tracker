@@ -35,7 +35,9 @@ export async function sendTaskForReview(taskId: string, projectId: string): Prom
     if (task.status === 'completed' || task.status === 'cancelled' || task.status === 'in_review') {
       return fail('This task is not in an active state.');
     }
-    const { error } = await supabase
+    // Concurrency-safe: only transition if the row is STILL in the status we read,
+    // so two people can't both submit / can't submit a task that was just acted on.
+    const { data: updated, error } = await supabase
       .from('tasks')
       .update({
         status: 'in_review',
@@ -43,8 +45,11 @@ export async function sendTaskForReview(taskId: string, projectId: string): Prom
         review_requested_at: new Date().toISOString(),
         review_requested_by: user.staff_id,
       })
-      .eq('id', taskId);
+      .eq('id', taskId)
+      .eq('status', task.status)
+      .select('id');
     if (error) return fail(error.message);
+    if (!updated || updated.length === 0) return fail('This task was just changed by someone else. Refresh and try again.');
     await supabase.from('task_reviews').insert({ task_id: taskId, action: 'submitted', actor_id: user.staff_id, prior_status: task.status });
     await notifyReviewRequested({ taskId, taskName: task.name, projectId, actorId: user.id });
     revalidateTask(projectId);
@@ -61,9 +66,18 @@ export async function approveTask(taskId: string, projectId: string): Promise<Ac
     const supabase = await createClient();
     const { data: task } = await supabase.from('tasks').select('name, status').eq('id', taskId).maybeSingle();
     if (!task) return fail('Task not found.');
+    if (task.status !== 'in_review') return fail('This task is no longer awaiting review.');
     const assignees = await assigneeStaffIds(supabase, taskId);
-    const { error } = await supabase.from('tasks').update({ status: 'completed' }).eq('id', taskId);
+    // Guard on in_review so concurrent approve/approve or approve-after-reject can't
+    // both win: the loser updates 0 rows and gets a friendly message.
+    const { data: updated, error } = await supabase
+      .from('tasks')
+      .update({ status: 'completed' })
+      .eq('id', taskId)
+      .eq('status', 'in_review')
+      .select('id');
     if (error) return fail(error.message);
+    if (!updated || updated.length === 0) return fail('This task was already reviewed by someone else.');
     await supabase.from('task_reviews').insert({ task_id: taskId, action: 'approved', actor_id: user.staff_id, prior_status: task.status });
     await maybeCreateRecurrence(supabase, taskId);
     await notifyTaskApproved({ taskId, taskName: task.name, projectId, assigneeStaffIds: assignees, actorId: user.id });
@@ -83,10 +97,18 @@ export async function rejectTask(taskId: string, projectId: string, comment: str
     const supabase = await createClient();
     const { data: task } = await supabase.from('tasks').select('name, status, prior_status').eq('id', taskId).maybeSingle();
     if (!task) return fail('Task not found.');
+    if (task.status !== 'in_review') return fail('This task is no longer awaiting review.');
     const restore = task.prior_status ?? 'in_progress';
     const assignees = await assigneeStaffIds(supabase, taskId);
-    const { error } = await supabase.from('tasks').update({ status: restore }).eq('id', taskId);
+    // Guard on in_review so reject can't race with approve (or a second reject).
+    const { data: updated, error } = await supabase
+      .from('tasks')
+      .update({ status: restore })
+      .eq('id', taskId)
+      .eq('status', 'in_review')
+      .select('id');
     if (error) return fail(error.message);
+    if (!updated || updated.length === 0) return fail('This task was already reviewed by someone else.');
     await supabase.from('task_reviews').insert({ task_id: taskId, action: 'rejected', actor_id: user.staff_id, comment: trimmed, prior_status: task.status });
     await notifyTaskRejected({ taskId, taskName: task.name, projectId, assigneeStaffIds: assignees, comment: trimmed, actorId: user.id });
     revalidateTask(projectId);
@@ -105,8 +127,15 @@ export async function undoComplete(taskId: string, projectId: string): Promise<A
     if (!task) return fail('Task not found.');
     if (task.status !== 'completed') return fail('Only completed tasks can be reopened.');
     const restore = task.prior_status ?? 'in_progress';
-    const { error } = await supabase.from('tasks').update({ status: restore }).eq('id', taskId);
+    // Guard on completed so two concurrent "Undo" clicks don't both restore.
+    const { data: updated, error } = await supabase
+      .from('tasks')
+      .update({ status: restore })
+      .eq('id', taskId)
+      .eq('status', 'completed')
+      .select('id');
     if (error) return fail(error.message);
+    if (!updated || updated.length === 0) return fail('This task was already reopened.');
     revalidateTask(projectId);
     return { ok: true };
   } catch (e) {

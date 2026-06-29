@@ -5,44 +5,63 @@ import { getCurrentUser } from '@/lib/auth';
 import { canManageProjects } from '@/lib/permissions';
 import { createClient } from '@/lib/supabase/server';
 import { cn, formatDate, formatDateTime } from '@/lib/utils';
-import { PROJECT_STATUS, TASK_PRIORITY, WORKFLOW_STATE } from '@/lib/constants';
+import { PROJECT_STATUS, SUBMITTAL_STATUS, TASK_PRIORITY, WORKFLOW_STATE } from '@/lib/constants';
 import { PrintButton } from '@/components/reports/print-button';
 import { getReportPdfSignedUrl } from '@/lib/reports/storage';
 import type { ReportSnapshot } from '@/lib/data/reports';
+import type { SelfReportSnapshot } from '@/lib/data/self-report';
 import type { Json } from '@/types/database.types';
 
 interface ReportRow {
   id: string;
   generated_at: string;
   report_type: string;
+  subject_staff_id: string | null;
   summary: string | null;
   snapshot: Json;
   pdf_path: string | null;
   generator: { full_name: string | null } | null;
 }
 
-export const metadata = { title: 'Ready Report' };
+export const metadata = { title: 'Report' };
 
 export default async function ReportPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
   const user = await getCurrentUser();
   if (!user) redirect('/login');
-  if (!canManageProjects(user.role)) redirect('/dashboard');
 
   const supabase = await createClient();
   const { data: report } = await supabase
     .from('report_runs')
-    .select('id, generated_at, report_type, summary, snapshot, pdf_path, generator:users(full_name)')
+    .select('id, generated_at, report_type, subject_staff_id, summary, snapshot, pdf_path, generator:users(full_name)')
     .eq('id', id)
     .returns<ReportRow[]>()
     .maybeSingle();
 
   if (!report) notFound();
 
-  const snap = report.snapshot as unknown as ReportSnapshot;
+  // Authorize: managers/admins see all; a staff member may view only their OWN
+  // self report. RLS already enforces this at the row level (a forbidden id
+  // returns no row → notFound above); this is the friendly in-app guard.
+  const isManager = canManageProjects(user.role);
+  const ownSelfReport = report.report_type === 'self_report' && report.subject_staff_id === user.staff_id;
+  if (!isManager && !ownSelfReport) redirect('/dashboard');
+
   const generatorName = report.generator?.full_name ?? 'Unknown';
   const pdfUrl = report.pdf_path ? await getReportPdfSignedUrl(report.pdf_path) : null;
+
+  if (report.report_type === 'self_report') {
+    return (
+      <SelfReportView
+        snap={report.snapshot as unknown as SelfReportSnapshot}
+        generatorName={generatorName}
+        pdfUrl={pdfUrl}
+      />
+    );
+  }
+
+  const snap = report.snapshot as unknown as ReportSnapshot;
 
   return (
     <div className="min-h-screen bg-slate-100 py-8 text-slate-900 print:bg-white print:py-0">
@@ -305,5 +324,136 @@ function DataTable({
         ))}
       </tbody>
     </table>
+  );
+}
+
+// ── Self Report (personal) ────────────────────────────────────────────────────
+
+function SelfKpi({ label, value, danger }: { label: string; value: number; danger?: boolean }) {
+  return (
+    <div className="rounded-md border border-slate-200 p-3">
+      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>
+      <p className={cn('mt-1 text-2xl font-bold leading-none', danger && value > 0 ? 'text-red-600' : '')}>{value}</p>
+    </div>
+  );
+}
+
+function SelfReportView({
+  snap,
+  generatorName,
+  pdfUrl,
+}: {
+  snap: SelfReportSnapshot;
+  generatorName: string;
+  pdfUrl: string | null;
+}) {
+  const taskRows = (rows: SelfReportSnapshot['overdue']) =>
+    rows.map((t) => [
+      t.name,
+      t.project ?? '—',
+      t.due_date ? formatDate(t.due_date) : '—',
+      TASK_PRIORITY[t.priority]?.label ?? t.priority,
+    ]);
+
+  return (
+    <div className="min-h-screen bg-slate-100 py-8 text-slate-900 print:bg-white print:py-0">
+      <style dangerouslySetInnerHTML={{ __html: '@media print { @page { margin: 14mm; } }' }} />
+
+      <div className="mx-auto mb-4 flex max-w-3xl items-center justify-between px-4 print:hidden">
+        <Link href="/my-work" className="inline-flex items-center gap-1.5 text-sm text-slate-600 hover:text-slate-900">
+          <ArrowLeft className="h-4 w-4" /> Back to My Work
+        </Link>
+        <div className="flex items-center gap-2">
+          {pdfUrl && (
+            <a
+              href={pdfUrl}
+              className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              <Download className="h-4 w-4" /> Download PDF
+            </a>
+          )}
+          <PrintButton />
+        </div>
+      </div>
+
+      <article className="mx-auto max-w-3xl bg-white p-8 shadow-sm print:max-w-none print:p-0 print:shadow-none">
+        <header className="border-b-2 border-slate-900 pb-4">
+          <div className="flex items-baseline justify-between">
+            <h1 className="text-2xl font-bold tracking-tight">Self Report</h1>
+            <span className="text-sm font-semibold text-slate-500">TDK / M&amp;P Engineering</span>
+          </div>
+          <p className="mt-1 text-sm text-slate-600">
+            {snap.subject.full_name} · Generated {formatDateTime(snap.generated_at)} by {generatorName}
+          </p>
+        </header>
+
+        <div className="mt-5 grid grid-cols-3 gap-3 sm:grid-cols-5">
+          <SelfKpi label="Open Tasks" value={snap.counts.open_tasks} />
+          <SelfKpi label="Overdue" value={snap.counts.overdue} danger />
+          <SelfKpi label="Due This Week" value={snap.counts.due_this_week} />
+          <SelfKpi label="Submittals" value={snap.counts.submittals} />
+          <SelfKpi label="Projects" value={snap.counts.active_projects} />
+        </div>
+
+        <Section n={1} title="Summary">
+          <p className="rounded-md bg-slate-50 p-3 text-sm leading-relaxed text-slate-700">{snap.executive_summary}</p>
+        </Section>
+
+        <Section n={2} title="Overdue Tasks">
+          <DataTable columns={['Task', 'Project', 'Due', 'Priority']} empty="No overdue tasks." rows={taskRows(snap.overdue)} />
+        </Section>
+
+        <Section n={3} title="Due This Week">
+          <DataTable columns={['Task', 'Project', 'Due', 'Priority']} empty="Nothing due this week." rows={taskRows(snap.due_this_week)} />
+        </Section>
+
+        <Section n={4} title="Upcoming & Unscheduled">
+          <DataTable columns={['Task', 'Project', 'Due', 'Priority']} empty="No other open tasks." rows={taskRows(snap.upcoming)} />
+        </Section>
+
+        <Section n={5} title="Assigned Submittals">
+          <DataTable
+            columns={['Type', 'Project', 'Agency', 'Status', 'Follow-up']}
+            empty="No assigned submittals."
+            rows={snap.submittals.map((m) => [
+              m.submission_type,
+              m.project ?? '—',
+              m.agency ?? '—',
+              SUBMITTAL_STATUS[m.status]?.label ?? m.status,
+              m.follow_up_date ? formatDate(m.follow_up_date) : '—',
+            ])}
+          />
+        </Section>
+
+        <Section n={6} title="Active Projects">
+          <DataTable
+            columns={['Project', 'Name', 'Status', 'Target']}
+            empty="No active projects."
+            rows={snap.projects.map((p) => [
+              p.project_number,
+              p.name,
+              PROJECT_STATUS[p.status]?.label ?? p.status,
+              p.target_completion_date ? formatDate(p.target_completion_date) : '—',
+            ])}
+          />
+        </Section>
+
+        <Section n={7} title="Completed in the Last 7 Days">
+          <DataTable
+            columns={['Task', 'Project', 'Completed']}
+            empty="No tasks completed in the last 7 days."
+            rows={snap.completed_recently.map((t) => [
+              t.name,
+              t.project ?? '—',
+              t.completed_at ? formatDate(t.completed_at) : '—',
+            ])}
+          />
+        </Section>
+
+        <footer className="mt-8 border-t border-slate-200 pt-3 text-xs text-slate-400">
+          TDK Project Tracker — personal report. Generated {formatDateTime(snap.generated_at)}.
+        </footer>
+      </article>
+    </div>
   );
 }

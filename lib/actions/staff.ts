@@ -77,8 +77,13 @@ export async function setStaffActive(id: string, active: boolean): Promise<Actio
 
 /**
  * Move a staff member's project responsibilities to another staff member:
- * project manager role, project team membership, task assignments, and
- * submittal assignments. Used when someone leaves or hands off their book.
+ * project manager role, project team membership, task assignments, and submittal
+ * assignments. Used when someone leaves or hands off their book.
+ *
+ * Runs in a single SECURITY DEFINER function (transfer_staff_ownership, 0030) so
+ * the whole hand-off is atomic — the previous version did four sequential writes
+ * with no error checks and could leave a half-transferred book while reporting
+ * success. The function authorizes the caller internally (rank >= 30) too.
  */
 export async function transferOwnership(fromStaffId: string, toStaffId: string): Promise<ActionResult> {
   try {
@@ -86,35 +91,8 @@ export async function transferOwnership(fromStaffId: string, toStaffId: string):
     if (fromStaffId === toStaffId) return fail('Pick a different staff member to transfer to.');
     const supabase = await createClient();
 
-    // 1) Project manager role
-    await supabase.from('projects').update({ project_manager_id: toStaffId }).eq('project_manager_id', fromStaffId);
-
-    // 2) Project team membership
-    const { data: ps } = await supabase.from('project_staff').select('project_id').eq('staff_id', fromStaffId);
-    if (ps && ps.length) {
-      await supabase
-        .from('project_staff')
-        .upsert(ps.map((r) => ({ project_id: r.project_id, staff_id: toStaffId })), {
-          onConflict: 'project_id,staff_id',
-          ignoreDuplicates: true,
-        });
-      await supabase.from('project_staff').delete().eq('staff_id', fromStaffId);
-    }
-
-    // 3) Task assignments
-    const { data: tsk } = await supabase.from('task_staff').select('task_id').eq('staff_id', fromStaffId);
-    if (tsk && tsk.length) {
-      await supabase
-        .from('task_staff')
-        .upsert(tsk.map((r) => ({ task_id: r.task_id, staff_id: toStaffId })), {
-          onConflict: 'task_id,staff_id',
-          ignoreDuplicates: true,
-        });
-      await supabase.from('task_staff').delete().eq('staff_id', fromStaffId);
-    }
-
-    // 4) Submittal assignments
-    await supabase.from('project_submittals').update({ assigned_staff_id: toStaffId }).eq('assigned_staff_id', fromStaffId);
+    const { error } = await supabase.rpc('transfer_staff_ownership', { p_from: fromStaffId, p_to: toStaffId });
+    if (error) return fail(`Couldn't transfer ownership: ${error.message}`);
 
     revalidatePath('/settings/staff');
     revalidatePath('/staff');

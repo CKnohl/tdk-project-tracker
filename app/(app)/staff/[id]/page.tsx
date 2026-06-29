@@ -17,8 +17,9 @@ import { WidgetCard } from '@/components/dashboard/widget-card';
 import { SubmittalRowItem, WidgetList } from '@/components/dashboard/rows';
 import { StaffProjectsCard } from '@/components/staff/staff-projects-card';
 import { StaffTasksCard } from '@/components/staff/staff-tasks-card';
+import { SelfReportButton } from '@/components/reports/self-report-button';
 import { getCurrentUser } from '@/lib/auth';
-import { canManageProjects } from '@/lib/permissions';
+import { canManageProjects, rankOf } from '@/lib/permissions';
 import { getStaffMember, getStaffWorkloadDetail } from '@/lib/data/staff';
 import { getProjectDirectory, getStaffDirectory } from '@/lib/data/reference';
 import { cn } from '@/lib/utils';
@@ -42,18 +43,29 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ id
   const canManage = canManageProjects(user?.role);
   const { member, summary, projects, tasks, submittals } = detail;
 
+  // Managers/Admins may generate a report for anyone; a staff member viewing their
+  // OWN page may generate their own (read-only accounts cannot). The action
+  // re-enforces this server-side.
+  const isSelf = !!user?.staff_id && user.staff_id === member.id;
+  const showSelfReport = canManage || (isSelf && rankOf(user!.role) >= 20);
+
   return (
     <div className="space-y-5">
       <Link href="/staff" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
         <ChevronLeft className="h-4 w-4" /> Staff
       </Link>
 
-      <div className="flex items-center gap-3">
-        <StaffAvatar name={member.full_name} initials={member.initials} className="h-12 w-12" />
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{member.full_name}</h1>
-          <p className="text-sm text-muted-foreground">{member.email ?? 'No email on file'}</p>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <StaffAvatar name={member.full_name} initials={member.initials} className="h-12 w-12" />
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">{member.full_name}</h1>
+            <p className="text-sm text-muted-foreground">{member.email ?? 'No email on file'}</p>
+          </div>
         </div>
+        {showSelfReport && (
+          <SelfReportButton subjectStaffId={member.id} label={isSelf ? 'Self Report' : 'Generate Report'} />
+        )}
       </div>
 
       {/* Workload summary */}
