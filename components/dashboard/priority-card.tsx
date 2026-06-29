@@ -16,7 +16,7 @@ interface State {
 const STYLES: Record<Variant, { on: State; off: State }> = {
   overdue: {
     on: {
-      card: 'border-red-300 dark:border-red-900 border-l-4 border-l-red-500 animate-soft-pulse',
+      card: 'border-red-300 dark:border-red-900 animate-soft-pulse',
       icon: 'text-red-600 dark:text-red-400',
       badge: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300',
       iconCmp: AlertTriangle,
@@ -25,7 +25,7 @@ const STYLES: Record<Variant, { on: State; off: State }> = {
   },
   today: {
     on: {
-      card: 'border-orange-200 dark:border-orange-900/70 border-l-4 border-l-orange-500',
+      card: 'border-orange-200 dark:border-orange-900/70',
       icon: 'text-orange-600 dark:text-orange-400',
       badge: 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300',
       iconCmp: Clock,
@@ -34,7 +34,7 @@ const STYLES: Record<Variant, { on: State; off: State }> = {
   },
   week: {
     on: {
-      card: 'border-sky-200 dark:border-sky-900/70 border-l-4 border-l-sky-500',
+      card: 'border-sky-200 dark:border-sky-900/70',
       icon: 'text-sky-600 dark:text-sky-400',
       badge: 'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300',
       iconCmp: ListChecks,
