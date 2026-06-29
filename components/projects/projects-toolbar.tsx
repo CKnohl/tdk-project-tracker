@@ -136,6 +136,10 @@ export function ProjectsToolbar({ companies }: { companies: CompanyOption[] }) {
         <SelectContent>
           <SelectItem value="recent">Recently updated</SelectItem>
           <SelectItem value="oldest">Oldest updated</SelectItem>
+          <SelectItem value="next_due">Next deadline</SelectItem>
+          <SelectItem value="most_overdue">Most overdue</SelectItem>
+          <SelectItem value="most_tasks">Most open tasks</SelectItem>
+          <SelectItem value="most_submittals">Most submittals</SelectItem>
           <SelectItem value="number">Project # (ascending)</SelectItem>
           <SelectItem value="number_desc">Project # (descending)</SelectItem>
           <SelectItem value="name">Project name</SelectItem>

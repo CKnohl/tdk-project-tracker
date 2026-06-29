@@ -25,7 +25,9 @@ export interface ProjectFilters {
   company?: number;
   phase?: ProjectPhase;
   workflow?: WorkflowState;
-  sort?: 'recent' | 'oldest' | 'name' | 'number' | 'number_desc' | 'target';
+  sort?:
+    | 'recent' | 'oldest' | 'name' | 'number' | 'number_desc' | 'target'
+    | 'next_due' | 'most_overdue' | 'most_tasks' | 'most_submittals';
   archived?: boolean;
 }
 
@@ -81,7 +83,33 @@ export async function getProjects(filters: ProjectFilters = {}): Promise<Project
     (stats ?? []).forEach((s) => statsMap.set(s.project_id, s));
   }
 
-  return data.map((p) => ({ ...p, stats: statsMap.get(p.id) ?? null }));
+  const result = data.map((p) => ({ ...p, stats: statsMap.get(p.id) ?? null }));
+
+  // Stats-based sorts run in memory because v_project_stats is fetched
+  // separately. The DB query already applied the column sorts above.
+  const n = (v: number | null | undefined) => v ?? 0;
+  switch (filters.sort) {
+    case 'next_due':
+      result.sort((a, b) => {
+        const ad = a.stats?.next_due_date ?? null;
+        const bd = b.stats?.next_due_date ?? null;
+        if (!ad && !bd) return 0;
+        if (!ad) return 1;
+        if (!bd) return -1;
+        return ad < bd ? -1 : ad > bd ? 1 : 0;
+      });
+      break;
+    case 'most_overdue':
+      result.sort((a, b) => n(b.stats?.overdue_tasks) - n(a.stats?.overdue_tasks));
+      break;
+    case 'most_tasks':
+      result.sort((a, b) => n(b.stats?.open_tasks) - n(a.stats?.open_tasks));
+      break;
+    case 'most_submittals':
+      result.sort((a, b) => n(b.stats?.awaiting_submittals) - n(a.stats?.awaiting_submittals));
+      break;
+  }
+  return result;
 }
 
 export interface ProjectDetail {

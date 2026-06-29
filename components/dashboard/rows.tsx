@@ -40,7 +40,7 @@ export function TaskRow({ task }: { task: TaskWithProject }) {
   const due = describeDue(task.due_date);
   return (
     <Link
-      href={task.project ? `/projects/${task.project.id}?tab=tasks` : '#'}
+      href={task.project ? `/projects/${task.project.id}?tab=tasks` : '/tasks'}
       className="flex items-center justify-between gap-3 rounded-md px-2 py-2 hover:bg-accent"
     >
       <div className="min-w-0">
@@ -99,7 +99,7 @@ export function CompletedTaskRow({ task }: { task: CompletedTaskItem }) {
   const by = task.assignees.map((a) => a.staff?.full_name).filter(Boolean).join(', ');
   return (
     <Link
-      href={task.project ? `/projects/${task.project.id}?tab=tasks` : '#'}
+      href={task.project ? `/projects/${task.project.id}?tab=tasks` : '/tasks'}
       className="flex items-center justify-between gap-3 rounded-md px-2 py-2 hover:bg-accent"
     >
       <div className="flex min-w-0 items-center gap-2">

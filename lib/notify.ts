@@ -37,8 +37,12 @@ const EMAIL_PREF_COLUMN: Partial<Record<NotificationType, EmailPrefColumn>> = {
 async function userIdsForStaff(admin: Admin, staffIds: string[]): Promise<string[]> {
   const ids = [...new Set(staffIds.filter(Boolean))];
   if (ids.length === 0) return [];
-  const { data } = await admin.from('staff').select('user_id').in('id', ids);
-  return (data ?? []).map((s) => s.user_id).filter((x): x is string => Boolean(x));
+  // Resolve via users.staff_id — the AUTHORITATIVE link used by RLS /
+  // current_staff_id() and set first (and error-checked) by linkUserStaff. The
+  // old path read staff.user_id, a secondary denormalized column that can lag,
+  // which silently dropped recipients whose two link columns had diverged.
+  const { data } = await admin.from('users').select('id').in('staff_id', ids);
+  return (data ?? []).map((u) => u.id);
 }
 
 async function projectManagerUserId(admin: Admin, projectId: string): Promise<string | null> {

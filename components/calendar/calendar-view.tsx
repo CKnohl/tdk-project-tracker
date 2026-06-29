@@ -43,7 +43,7 @@ function rangeFor(view: View, cursor: Date) {
 function EventChip({ ev }: { ev: CalendarFeedRow }) {
   return (
     <Link
-      href={ev.project_id ? `/projects/${ev.project_id}` : '#'}
+      href={ev.project_id ? `/projects/${ev.project_id}` : '/tasks'}
       className="flex items-center gap-1 truncate rounded px-1 py-0.5 text-[11px] hover:bg-accent"
       title={ev.title}
     >
@@ -108,7 +108,7 @@ export function CalendarView({
         </Tabs>
       </div>
 
-      {view !== 'agenda' && (
+      {view === 'month' && (
         <div className="grid grid-cols-7 border-b text-center text-[11px] font-medium uppercase text-muted-foreground">
           {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
             <div key={d} className="py-1.5">{d}</div>
@@ -116,8 +116,8 @@ export function CalendarView({
         </div>
       )}
 
-      {(view === 'month' || view === 'week') && (
-        <div className={cn('grid grid-cols-7', view === 'month' ? 'grid-rows-6' : '')}>
+      {view === 'month' && (
+        <div className="grid grid-cols-7 grid-rows-6">
           {eachDayOfInterval({ start, end }).map((day) => {
             const key = iso(day);
             const dayEvents = byDay.get(key) ?? [];
@@ -157,6 +157,43 @@ export function CalendarView({
         </div>
       )}
 
+      {view === 'week' && (
+        <div className="divide-y">
+          {eachDayOfInterval({ start, end }).map((day) => {
+            const key = iso(day);
+            const dayEvents = byDay.get(key) ?? [];
+            return (
+              <div key={key} className="py-2.5">
+                <div className={cn('mb-1 flex items-center gap-2 text-xs font-semibold', isToday(day) ? 'text-primary' : 'text-muted-foreground')}>
+                  {format(day, 'EEEE, MMM d')}
+                  {isToday(day) && <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-medium text-primary-foreground">Today</span>}
+                </div>
+                {dayEvents.length === 0 ? (
+                  <p className="pl-0.5 text-xs text-muted-foreground/70">Nothing scheduled</p>
+                ) : (
+                  <div className="space-y-0.5">
+                    {dayEvents.map((ev) => (
+                      <Link
+                        key={ev.feed_id}
+                        href={ev.project_id ? `/projects/${ev.project_id}` : '/tasks'}
+                        className="flex items-center justify-between gap-2 rounded px-1 py-1 text-sm hover:bg-accent"
+                      >
+                        <span className="flex min-w-0 items-center gap-2">
+                          <span className={cn('h-2 w-2 shrink-0 rounded-full', EVENT_COLORS[ev.event_type] ?? 'bg-slate-500')} />
+                          <span className="truncate">{ev.title}</span>
+                        </span>
+                        <span className="shrink-0 text-xs text-muted-foreground">{ev.project_number ?? humanize(ev.source)}</span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          {isLoading && <p className="py-3 text-center text-xs text-muted-foreground">Loading…</p>}
+        </div>
+      )}
+
       {view === 'agenda' && (
         <div className="divide-y">
           {events.length === 0 && !isLoading && (
@@ -168,7 +205,7 @@ export function CalendarView({
                 <span className={cn('h-2 w-2 shrink-0 rounded-full', EVENT_COLORS[ev.event_type] ?? 'bg-slate-500')} />
                 <div className="min-w-0">
                   <Link
-                    href={ev.project_id ? `/projects/${ev.project_id}` : '#'}
+                    href={ev.project_id ? `/projects/${ev.project_id}` : '/tasks'}
                     className="truncate text-sm font-medium hover:underline"
                   >
                     {ev.title}
