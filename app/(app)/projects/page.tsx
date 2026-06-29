@@ -44,6 +44,7 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
     phase: (sp.phase as ProjectPhase) || undefined,
     workflow: (sp.workflow as WorkflowState) || undefined,
     sort: (sp.sort as ProjectFilters['sort']) || 'recent',
+    health: (sp.health as ProjectFilters['health']) || undefined,
   };
 
   const projects = await getProjects(filters);

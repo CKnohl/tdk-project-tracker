@@ -20,8 +20,8 @@ const HEALTH: Record<HealthLevel, { dot: string; text: string; ring: string; bar
 
 const SCHEDULE_HEALTH: Record<ScheduleHealth, { text: string; dot: string; label: string }> = {
   on_track: { text: 'text-emerald-700 dark:text-emerald-400', dot: 'bg-emerald-500', label: 'On schedule' },
-  at_risk:  { text: 'text-amber-700 dark:text-amber-400',     dot: 'bg-amber-500',   label: 'Schedule at risk' },
-  slipping: { text: 'text-red-700 dark:text-red-400',         dot: 'bg-red-500',     label: 'Slipping' },
+  slipping: { text: 'text-amber-700 dark:text-amber-400',     dot: 'bg-amber-500',   label: 'Slipping' },
+  behind:   { text: 'text-red-700 dark:text-red-400',         dot: 'bg-red-500',     label: 'Behind' },
 };
 
 function SchedFact({ label, value }: { label: string; value: string }) {
@@ -79,7 +79,7 @@ export function ProjectCommandCenter({
   const id = project.id;
   const m = computeProjectMetrics(detail);
   const h = HEALTH[m.health];
-  const sched = computeSchedule(project, detail.phases, detail.submittals, detail.milestones);
+  const sched = computeSchedule(project, detail.phases, detail.submittals, detail.tasks);
   const sh = SCHEDULE_HEALTH[sched.health];
 
   const members = detail.staff.map((s) => s.staff).filter(Boolean) as { id: string; full_name: string; initials: string | null }[];
@@ -153,8 +153,8 @@ export function ProjectCommandCenter({
           </span>
           <SchedFact label="Critical phase" value={sched.criticalPhase ?? '—'} />
           <SchedFact
-            label="Next milestone"
-            value={sched.nextMilestone ? `${sched.nextMilestone.label}${sched.daysUntilNextMilestone != null ? ` · ${sched.daysUntilNextMilestone}d` : ''}` : 'None scheduled'}
+            label="Next submittal"
+            value={sched.nextSubmittal ? `${sched.nextSubmittal.label}${sched.daysUntilNextSubmittal != null ? ` · ${sched.daysUntilNextSubmittal}d` : ''}` : 'None scheduled'}
           />
           <SchedFact label="Schedule" value={`${sched.overallProgress}%`} />
           <ArrowRight className="ml-auto h-4 w-4 shrink-0 text-muted-foreground" />

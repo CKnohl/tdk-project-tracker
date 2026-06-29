@@ -1,8 +1,8 @@
 import { createClient } from '@/lib/supabase/server';
 import { getDueItems, type DueItem } from '@/lib/data/due-items';
-import { computeSchedule, type ScheduleMilestone, type ScheduleSubmittal } from '@/lib/schedule';
+import { computeSchedule, type ScheduleSubmittal, type ScheduleTask } from '@/lib/schedule';
 import type { ProjectListItem, CompletedTaskItem } from '@/lib/types';
-import type { FollowUpNeededRow, ProjectPhaseRow, ProjectStatus, WorkflowState, InactiveReason } from '@/types/database.types';
+import type { FollowUpNeededRow, ProjectPhaseRow, ProjectStatus, WorkflowState, InactiveReason, TaskStatus, TaskPriority } from '@/types/database.types';
 
 const PROJECT_SELECT =
   // NOTE: also used against v_awaiting_response_projects, a `select p.*` view
@@ -89,18 +89,14 @@ export async function getDashboardData(): Promise<DashboardData> {
 
 export interface ScheduleHealthSummary {
   onSchedule: number;
-  atRisk: number;
   slipping: number;
-  waitingClient: number;
-  waitingMunicipality: number;
-  upcomingMilestones: number;
+  behind: number;
   slippingProjects: { id: string; project_number: string; name: string; reason: string }[];
-  upcoming: { id: string; project_number: string; name: string; label: string; days: number }[];
+  behindProjects: { id: string; project_number: string; name: string; reason: string }[];
 }
 
 const EMPTY_SCHEDULE_HEALTH: ScheduleHealthSummary = {
-  onSchedule: 0, atRisk: 0, slipping: 0, waitingClient: 0, waitingMunicipality: 0,
-  upcomingMilestones: 0, slippingProjects: [], upcoming: [],
+  onSchedule: 0, slipping: 0, behind: 0, slippingProjects: [], behindProjects: [],
 };
 
 /**
@@ -123,13 +119,13 @@ export async function getScheduleHealth(): Promise<ScheduleHealthSummary> {
   if (projs.length === 0) return EMPTY_SCHEDULE_HEALTH;
   const ids = projs.map((p) => p.id);
 
-  const [phasesRes, subsRes, msRes] = await Promise.all([
+  const [phasesRes, subsRes, tasksRes] = await Promise.all([
     supabase.from('project_phases').select('id, project_id, name, position, is_current, start_date, end_date, progress, created_at')
       .in('project_id', ids).order('position', { ascending: true }).returns<ProjectPhaseRow[]>(),
     supabase.from('project_submittals').select('id, project_id, status, response_due_date, submission_type')
       .in('project_id', ids).returns<Array<ScheduleSubmittal & { project_id: string }>>(),
-    supabase.from('calendar_events').select('id, project_id, title, start_at')
-      .eq('event_type', 'milestone').in('project_id', ids).returns<Array<ScheduleMilestone & { project_id: string }>>(),
+    supabase.from('tasks').select('project_id, status, due_date, priority')
+      .in('project_id', ids).returns<Array<ScheduleTask & { project_id: string }>>(),
   ]);
 
   const group = <T extends { project_id: string }>(rows: T[] | null) => {
@@ -143,28 +139,21 @@ export async function getScheduleHealth(): Promise<ScheduleHealthSummary> {
   };
   const phasesBy = group(phasesRes.data);
   const subsBy = group(subsRes.data);
-  const msBy = group(msRes.data);
+  const tasksBy = group(tasksRes.data);
 
-  const out: ScheduleHealthSummary = { ...EMPTY_SCHEDULE_HEALTH, slippingProjects: [], upcoming: [] };
+  const out: ScheduleHealthSummary = { ...EMPTY_SCHEDULE_HEALTH, slippingProjects: [], behindProjects: [] };
   for (const proj of projs) {
-    const sched = computeSchedule(proj, phasesBy.get(proj.id) ?? [], subsBy.get(proj.id) ?? [], msBy.get(proj.id) ?? []);
-    if (sched.health === 'on_track') out.onSchedule++;
-    else if (sched.health === 'at_risk') out.atRisk++;
-    else {
+    const sched = computeSchedule(proj, phasesBy.get(proj.id) ?? [], subsBy.get(proj.id) ?? [], tasksBy.get(proj.id) ?? []);
+    const entry = { id: proj.id, project_number: proj.project_number, name: proj.name, reason: sched.healthReasons[0] ?? '' };
+    if (sched.health === 'behind') {
+      out.behind++;
+      if (out.behindProjects.length < 6) out.behindProjects.push({ ...entry, reason: entry.reason || 'behind schedule' });
+    } else if (sched.health === 'slipping') {
       out.slipping++;
-      if (out.slippingProjects.length < 6) {
-        out.slippingProjects.push({ id: proj.id, project_number: proj.project_number, name: proj.name, reason: sched.healthReasons[0] ?? 'behind schedule' });
-      }
-    }
-    if (proj.workflow_state === 'awaiting_response') out.waitingClient++;
-    if ((subsBy.get(proj.id) ?? []).some((s) => s.status === 'submitted' || s.status === 'awaiting_response')) out.waitingMunicipality++;
-    if (sched.nextMilestone && sched.daysUntilNextMilestone != null && sched.daysUntilNextMilestone <= 14) {
-      out.upcomingMilestones++;
-      if (out.upcoming.length < 6) {
-        out.upcoming.push({ id: proj.id, project_number: proj.project_number, name: proj.name, label: sched.nextMilestone.label, days: sched.daysUntilNextMilestone });
-      }
+      if (out.slippingProjects.length < 6) out.slippingProjects.push({ ...entry, reason: entry.reason || 'at risk' });
+    } else {
+      out.onSchedule++;
     }
   }
-  out.upcoming.sort((a, b) => a.days - b.days);
   return out;
 }

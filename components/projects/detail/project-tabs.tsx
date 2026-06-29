@@ -66,7 +66,7 @@ export function ProjectTabs({
       <TabsContent value="files"><FilesTab projectId={id} files={detail.files} canEdit={canEdit} /></TabsContent>
       <TabsContent value="notes"><NotesTab projectId={id} notes={detail.notes} canEdit={canEdit} /></TabsContent>
       <TabsContent value="staff"><StaffTab projectId={id} members={detail.staff} staff={staff} canEdit={canEdit} /></TabsContent>
-      <TabsContent value="timeline"><TimelineTab project={detail.project} phases={detail.phases} submittals={detail.submittals} tasks={detail.tasks} milestones={detail.milestones} canManage={canManage} /></TabsContent>
+      <TabsContent value="timeline"><TimelineTab project={detail.project} phases={detail.phases} submittals={detail.submittals} tasks={detail.tasks} canManage={canManage} /></TabsContent>
       <TabsContent value="history"><HistoryTab activity={detail.activity} /></TabsContent>
     </Tabs>
   );

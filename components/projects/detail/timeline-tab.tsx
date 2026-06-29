@@ -3,12 +3,12 @@
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Check, Plus, Pencil, Trash2, ChevronUp, ChevronDown, X } from 'lucide-react';
+import { Check, Plus, Pencil, Trash2, ChevronUp, ChevronDown, X, BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { addPhase, renamePhase, deletePhase, reorderPhases, setCurrentPhase, setPhaseSchedule } from '@/lib/actions/phases';
-import { computeSchedule, type ScheduleMilestone } from '@/lib/schedule';
+import { computeSchedule } from '@/lib/schedule';
 import { ScheduleGantt } from './schedule-gantt';
 import type { ProjectListItem, SubmittalWithProject, TaskWithStaff } from '@/lib/types';
 import type { ProjectPhaseRow } from '@/types/database.types';
@@ -18,14 +18,12 @@ export function TimelineTab({
   phases,
   submittals,
   tasks,
-  milestones,
   canManage,
 }: {
   project: ProjectListItem;
   phases: ProjectPhaseRow[];
   submittals: SubmittalWithProject[];
   tasks: TaskWithStaff[];
-  milestones: ScheduleMilestone[];
   canManage: boolean;
 }) {
   const router = useRouter();
@@ -36,9 +34,10 @@ export function TimelineTab({
   const [editName, setEditName] = React.useState('');
 
   const currentIdx = phases.findIndex((p) => p.is_current);
+  const [showGantt, setShowGantt] = React.useState(false);
   const schedule = React.useMemo(
-    () => computeSchedule(project, phases, submittals, milestones),
-    [project, phases, submittals, milestones],
+    () => computeSchedule(project, phases, submittals, tasks),
+    [project, phases, submittals, tasks],
   );
 
   async function act(p: Promise<{ ok: boolean; error?: string }>) {
@@ -73,16 +72,7 @@ export function TimelineTab({
 
   return (
     <div className="space-y-6">
-      {/* ── Schedule (Gantt) ── */}
-      <div>
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-sm font-semibold">Schedule</h3>
-          <span className="text-xs text-muted-foreground">{schedule.overallProgress}% complete</span>
-        </div>
-        <ScheduleGantt schedule={schedule} tasks={tasks} />
-      </div>
-
-      {/* ── Phases (editable foundation) ── */}
+      {/* ── Phases (the timeline — default) ── */}
       <div>
         <div className="mb-3 flex items-center justify-between">
           <h3 className="text-sm font-semibold">Phases</h3>
@@ -242,6 +232,26 @@ export function TimelineTab({
               </Button>
             </div>
           </div>
+        )}
+      </div>
+
+      {/* ── Gantt Chart (optional planning aid) ── */}
+      <div>
+        {!showGantt ? (
+          <Button variant="outline" size="sm" onClick={() => setShowGantt(true)}>
+            <BarChart3 className="h-4 w-4" /> Generate Gantt Chart
+          </Button>
+        ) : (
+          <>
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-semibold">Gantt Chart</h3>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">{schedule.overallProgress}% complete</span>
+                <Button variant="ghost" size="sm" onClick={() => setShowGantt(false)}>Hide</Button>
+              </div>
+            </div>
+            <ScheduleGantt schedule={schedule} tasks={tasks} />
+          </>
         )}
       </div>
     </div>

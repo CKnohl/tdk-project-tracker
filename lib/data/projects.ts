@@ -1,5 +1,6 @@
 import { cache } from 'react';
 import { createClient } from '@/lib/supabase/server';
+import { computeSchedule, type ScheduleHealth, type ScheduleSubmittal, type ScheduleTask } from '@/lib/schedule';
 import type {
   ProjectListItem,
   TaskWithStaff,
@@ -13,7 +14,6 @@ import type {
   StaffRef,
   ReviewItem,
 } from '@/lib/types';
-import type { ScheduleMilestone } from '@/lib/schedule';
 import type { ProjectStatsRow, ProjectStatus, ProjectPhase, WorkflowState, ProjectPhaseRow } from '@/types/database.types';
 
 const PROJECT_SELECT =
@@ -28,6 +28,7 @@ export interface ProjectFilters {
   sort?:
     | 'recent' | 'oldest' | 'name' | 'number' | 'number_desc' | 'target'
     | 'next_due' | 'most_overdue' | 'most_tasks' | 'most_submittals';
+  health?: ScheduleHealth;
   archived?: boolean;
 }
 
@@ -109,6 +110,26 @@ export async function getProjects(filters: ProjectFilters = {}): Promise<Project
       result.sort((a, b) => n(b.stats?.awaiting_submittals) - n(a.stats?.awaiting_submittals));
       break;
   }
+
+  // Schedule-health filter (dashboard health cards). Computes the shared schedule
+  // verdict per project; only runs when a health filter is requested.
+  if (filters.health) {
+    const rids = result.map((p) => p.id);
+    const grp = <T extends { project_id: string }>(rows: T[] | null) => {
+      const m = new Map<string, T[]>();
+      for (const r of rows ?? []) { let a = m.get(r.project_id); if (!a) { a = []; m.set(r.project_id, a); } a.push(r); }
+      return m;
+    };
+    const [ph, sb, tk] = await Promise.all([
+      supabase.from('project_phases').select('id, project_id, name, position, is_current, start_date, end_date, progress, created_at').in('project_id', rids).order('position', { ascending: true }).returns<ProjectPhaseRow[]>(),
+      supabase.from('project_submittals').select('id, project_id, status, response_due_date, submission_type').in('project_id', rids).returns<Array<ScheduleSubmittal & { project_id: string }>>(),
+      supabase.from('tasks').select('project_id, status, due_date, priority').in('project_id', rids).returns<Array<ScheduleTask & { project_id: string }>>(),
+    ]);
+    const phB = grp(ph.data);
+    const sbB = grp(sb.data);
+    const tkB = grp(tk.data);
+    return result.filter((p) => computeSchedule(p, phB.get(p.id) ?? [], sbB.get(p.id) ?? [], tkB.get(p.id) ?? []).health === filters.health);
+  }
   return result;
 }
 
@@ -126,7 +147,6 @@ export interface ProjectDetail {
   phases: ProjectPhaseRow[];
   leads: StaffRef[];
   taskReviews: Record<string, ReviewItem[]>;
-  milestones: ScheduleMilestone[];
 }
 
 // Wrapped in React cache() so the detail route's generateMetadata + page body
@@ -142,7 +162,7 @@ export const getProjectDetail = cache(async (id: string): Promise<ProjectDetail 
     .maybeSingle();
   if (!project) return null;
 
-  const [staff, tasks, submittals, contacts, notes, files, activity, stats, phases, leads, milestones] = await Promise.all([
+  const [staff, tasks, submittals, contacts, notes, files, activity, stats, phases, leads] = await Promise.all([
     supabase
       .from('project_staff')
       .select('role_on_project, staff:staff(id,full_name,initials)')
@@ -197,13 +217,6 @@ export const getProjectDetail = cache(async (id: string): Promise<ProjectDetail 
       .select('staff:staff(id,full_name,initials)')
       .eq('project_id', id)
       .returns<{ staff: StaffRef | null }[]>(),
-    supabase
-      .from('calendar_events')
-      .select('id, title, start_at')
-      .eq('project_id', id)
-      .eq('event_type', 'milestone')
-      .order('start_at', { ascending: true })
-      .returns<ScheduleMilestone[]>(),
   ]);
 
   // Surface query failures instead of silently rendering an empty tab. A task
@@ -252,6 +265,5 @@ export const getProjectDetail = cache(async (id: string): Promise<ProjectDetail 
     phases: phases.data ?? [],
     leads: (leads.data ?? []).map((l) => l.staff).filter(Boolean) as StaffRef[],
     taskReviews,
-    milestones: milestones.data ?? [],
   };
 });

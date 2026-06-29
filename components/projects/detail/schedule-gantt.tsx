@@ -73,18 +73,8 @@ export function ScheduleGantt({ schedule, tasks }: { schedule: ProjectSchedule; 
           )}
         </div>
 
-        {(schedule.milestones.length > 0 || schedule.submittals.length > 0) && (
+        {schedule.submittals.length > 0 && (
           <div className="relative mt-2 h-5 border-t border-border/60 pt-2">
-            {schedule.milestones.map((m) => (
-              <span
-                key={`m-${m.id}`}
-                className="absolute top-2 -translate-x-1/2"
-                style={{ left: `${pct(m.date)}%` }}
-                title={`Milestone: ${m.label} · ${formatDate(m.date)}`}
-              >
-                <span className={cn('block h-2.5 w-2.5 rotate-45', m.past ? 'bg-muted-foreground' : 'bg-violet-500')} />
-              </span>
-            ))}
             {schedule.submittals.map((m) => (
               <span
                 key={`s-${m.id}`}
@@ -104,7 +94,6 @@ export function ScheduleGantt({ schedule, tasks }: { schedule: ProjectSchedule; 
         <span className="flex items-center gap-1"><span className="h-2 w-3 rounded-sm bg-emerald-500" /> Completed</span>
         <span className="flex items-center gap-1"><span className="h-2 w-3 rounded-sm bg-primary" /> Current</span>
         <span className="flex items-center gap-1"><span className="h-2 w-3 rounded-sm bg-muted-foreground/30" /> Upcoming</span>
-        <span className="flex items-center gap-1"><span className="h-2 w-2 rotate-45 bg-violet-500" /> Milestone</span>
         <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-amber-500" /> Submittal due</span>
       </div>
 
