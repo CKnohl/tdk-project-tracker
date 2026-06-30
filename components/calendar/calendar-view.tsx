@@ -63,6 +63,25 @@ export function CalendarView({
   const [view, setView] = React.useState<View>(defaultView);
   const [cursor, setCursor] = React.useState(new Date());
 
+  // Remember the user's last view across visits (don't hard-code a view). SSR
+  // renders defaultView; the client restores the saved choice on mount.
+  React.useEffect(() => {
+    try {
+      const saved = localStorage.getItem('tdk-calendar-view');
+      if (saved === 'month' || saved === 'week' || saved === 'agenda') setView(saved);
+    } catch {
+      /* localStorage unavailable */
+    }
+  }, []);
+  const changeView = React.useCallback((v: View) => {
+    setView(v);
+    try {
+      localStorage.setItem('tdk-calendar-view', v);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   const { start, end } = rangeFor(view, cursor);
   const { data: events = [], isLoading } = useCalendarFeed(iso(start), iso(addDays(end, 1)));
 
@@ -99,7 +118,7 @@ export function CalendarView({
           </Button>
           <span className="ml-2 text-sm font-semibold">{heading}</span>
         </div>
-        <Tabs value={view} onValueChange={(v) => setView(v as View)}>
+        <Tabs value={view} onValueChange={(v) => changeView(v as View)}>
           <TabsList className="h-8">
             <TabsTrigger value="month" className="text-xs">Month</TabsTrigger>
             <TabsTrigger value="week" className="text-xs">Week</TabsTrigger>

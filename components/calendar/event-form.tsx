@@ -16,6 +16,9 @@ import type { CalendarEventRow } from '@/types/database.types';
 const NONE = '__none__';
 const TYPES = [
   { value: 'meeting', label: 'Meeting' },
+  { value: 'presentation', label: 'Presentation' },
+  { value: 'town_meeting', label: 'Town Meeting' },
+  { value: 'inspection', label: 'Inspection' },
   { value: 'site_visit', label: 'Site Visit' },
   { value: 'milestone', label: 'Milestone' },
   { value: 'deadline', label: 'Deadline' },

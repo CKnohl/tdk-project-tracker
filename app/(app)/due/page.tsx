@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { AlertTriangle, Clock, ListChecks } from 'lucide-react';
+import { AlertTriangle, Clock, ListChecks, Flame } from 'lucide-react';
 import { PageHeader } from '@/components/shared/page-header';
 import { EmptyState } from '@/components/shared/empty-state';
 import { DueItemRow } from '@/components/dashboard/rows';
@@ -8,11 +8,12 @@ import { cn } from '@/lib/utils';
 
 export const metadata = { title: 'Priority Items' };
 
-type Filter = 'overdue' | 'today' | 'week';
+type Filter = 'overdue' | 'today' | 'week' | 'high';
 
 export default async function DuePage({ searchParams }: { searchParams: Promise<{ filter?: string }> }) {
   const { filter } = await searchParams;
-  const f: Filter = filter === 'today' ? 'today' : filter === 'week' ? 'week' : 'overdue';
+  const f: Filter =
+    filter === 'today' ? 'today' : filter === 'week' ? 'week' : filter === 'high' ? 'high' : 'overdue';
 
   const due = await getDueItems();
   const items = due[f];
@@ -21,6 +22,7 @@ export default async function DuePage({ searchParams }: { searchParams: Promise<
     { key: 'overdue', label: 'Overdue', count: due.overdue.length, icon: AlertTriangle },
     { key: 'today', label: 'Due Today', count: due.today.length, icon: Clock },
     { key: 'week', label: 'Due This Week', count: due.week.length, icon: ListChecks },
+    { key: 'high', label: 'High Priority', count: due.high.length, icon: Flame },
   ];
 
   return (

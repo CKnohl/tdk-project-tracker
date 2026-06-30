@@ -7,6 +7,7 @@ import { canEdit, canManageProjects } from '@/lib/permissions';
 import { canReviewProject } from '@/lib/project-permissions';
 import { getProjectDetail } from '@/lib/data/projects';
 import { getCompanies, getStaffDirectory } from '@/lib/data/reference';
+import { RecentTracker } from '@/components/shared/recent-tracker';
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -36,6 +37,12 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
 
   return (
     <div className="space-y-5">
+      <RecentTracker
+        kind="project"
+        id={detail.project.id}
+        label={`${detail.project.project_number} · ${detail.project.name}`}
+        href={`/projects/${detail.project.id}`}
+      />
       <ProjectHeader
         project={detail.project}
         phases={detail.phases}

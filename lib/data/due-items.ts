@@ -29,6 +29,7 @@ export interface DueBuckets {
   overdue: DueItem[];
   today: DueItem[];
   week: DueItem[];
+  high: DueItem[];
 }
 
 export async function getDueItems(): Promise<DueBuckets> {
@@ -37,7 +38,7 @@ export async function getDueItems(): Promise<DueBuckets> {
   const todayStr = iso(today);
   const in7Str = iso(addDays(today, 7));
 
-  const [tasksRes, submittalsRes] = await Promise.all([
+  const [tasksRes, submittalsRes, highRes] = await Promise.all([
     supabase
       .from('tasks')
       .select(DUE_TASK_SELECT)
@@ -51,6 +52,14 @@ export async function getDueItems(): Promise<DueBuckets> {
       .not('status', 'in', CLOSED_SUBMITTAL)
       .not('response_due_date', 'is', null)
       .lte('response_due_date', in7Str)
+      .returns<any[]>(),
+    // High Priority bucket: every open high/urgent task regardless of due date —
+    // the same single source feeds the dashboard tile and the /due "High" tab.
+    supabase
+      .from('tasks')
+      .select(DUE_TASK_SELECT)
+      .not('status', 'in', OPEN_TASK)
+      .in('priority', ['high', 'urgent'])
       .returns<any[]>(),
   ]);
 
@@ -78,9 +87,25 @@ export async function getDueItems(): Promise<DueBuckets> {
   const all = [...taskItems, ...submittalItems];
   const byDue = (a: DueItem, b: DueItem) => ((a.due_date ?? '') < (b.due_date ?? '') ? -1 : 1);
 
+  // Open high/urgent tasks (undated first, then soonest), urgent above high.
+  const prRank = (p: TaskPriority | null) => (p === 'urgent' ? 0 : 1);
+  const high: DueItem[] = (highRes.data ?? [])
+    .map((t) => ({
+      id: t.id,
+      kind: 'task' as const,
+      name: t.name,
+      project: t.project ?? null,
+      due_date: t.due_date ?? null,
+      priority: (t.priority ?? null) as TaskPriority | null,
+      status: t.status,
+      tab: 'tasks' as const,
+    }))
+    .sort((a, b) => prRank(a.priority) - prRank(b.priority) || byDue(a, b));
+
   return {
     overdue: all.filter((i) => i.due_date && i.due_date < todayStr).sort(byDue),
     today: all.filter((i) => i.due_date === todayStr).sort(byDue),
     week: all.filter((i) => i.due_date && i.due_date > todayStr && i.due_date <= in7Str).sort(byDue),
+    high,
   };
 }

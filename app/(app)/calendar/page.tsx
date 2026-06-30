@@ -35,12 +35,19 @@ export default async function CalendarPage() {
       </PageHeader>
       <Card>
         <CardContent className="p-4">
+          {/* The grid is the single source of truth — it reads v_calendar_feed
+              (tasks, submittals, follow-ups, milestones AND calendar events). The
+              view is not hard-coded: CalendarView remembers the user's last choice. */}
           <CalendarView defaultView="month" />
         </CardContent>
       </Card>
       <Card>
         <CardHeader className="p-4 pb-0">
-          <CardTitle className="text-sm font-semibold">Scheduled events</CardTitle>
+          <CardTitle className="text-sm font-semibold">Manage calendar events</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Meetings, presentations, town meetings, inspections and site visits you add by hand. Tasks,
+            submittals and deadlines appear on the calendar above automatically.
+          </p>
         </CardHeader>
         <CardContent className="p-4">
           <EventsList events={events ?? []} projects={projects ?? []} canEdit={editor} />

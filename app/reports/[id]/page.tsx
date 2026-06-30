@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/server';
 import { cn, formatDate, formatDateTime } from '@/lib/utils';
 import { PROJECT_STATUS, SUBMITTAL_STATUS, TASK_PRIORITY, WORKFLOW_STATE } from '@/lib/constants';
 import { PrintButton } from '@/components/reports/print-button';
+import { RecentTracker } from '@/components/shared/recent-tracker';
 import { getReportPdfSignedUrl } from '@/lib/reports/storage';
 import type { ReportSnapshot } from '@/lib/data/reports';
 import type { SelfReportSnapshot } from '@/lib/data/self-report';
@@ -52,12 +53,12 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
   const pdfUrl = report.pdf_path ? await getReportPdfSignedUrl(report.pdf_path) : null;
 
   if (report.report_type === 'self_report') {
+    const selfSnap = report.snapshot as unknown as SelfReportSnapshot;
     return (
-      <SelfReportView
-        snap={report.snapshot as unknown as SelfReportSnapshot}
-        generatorName={generatorName}
-        pdfUrl={pdfUrl}
-      />
+      <>
+        <RecentTracker kind="report" id={report.id} label={`Self Report — ${selfSnap.subject.full_name}`} href={`/reports/${report.id}`} />
+        <SelfReportView snap={selfSnap} generatorName={generatorName} pdfUrl={pdfUrl} />
+      </>
     );
   }
 
@@ -65,6 +66,7 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
 
   return (
     <div className="min-h-screen bg-slate-100 py-8 text-slate-900 print:bg-white print:py-0">
+      <RecentTracker kind="report" id={report.id} label="Ready Report" href={`/reports/${report.id}`} />
       <style
         dangerouslySetInnerHTML={{
           __html: '@media print { @page { margin: 14mm; } }',

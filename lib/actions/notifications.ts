@@ -13,7 +13,7 @@ export async function markNotificationRead(id: string, read = true): Promise<Act
       .update({ is_read: read, read_at: read ? new Date().toISOString() : null })
       .eq('id', id);
     if (error) return fail(error.message);
-    revalidatePath('/notifications');
+    revalidatePath('/my-work');
     return { ok: true };
   } catch (e) {
     return fail(errMessage(e));
@@ -31,7 +31,7 @@ export async function markAllNotificationsRead(): Promise<ActionResult> {
       .eq('user_id', user.id)
       .eq('is_read', false);
     if (error) return fail(error.message);
-    revalidatePath('/notifications');
+    revalidatePath('/my-work');
     return { ok: true };
   } catch (e) {
     return fail(errMessage(e));
@@ -43,7 +43,7 @@ export async function deleteNotification(id: string): Promise<ActionResult> {
     const supabase = await createClient();
     const { error } = await supabase.from('notifications').delete().eq('id', id);
     if (error) return fail(error.message);
-    revalidatePath('/notifications');
+    revalidatePath('/my-work');
     return { ok: true };
   } catch (e) {
     return fail(errMessage(e));

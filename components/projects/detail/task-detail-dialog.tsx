@@ -87,9 +87,6 @@ export function TaskDetailDialog({
           <Row label="Description">
             {task.description ? <p className="whitespace-pre-wrap">{task.description}</p> : <span className="text-muted-foreground">—</span>}
           </Row>
-          <Row label="Notes">
-            {task.notes ? <p className="whitespace-pre-wrap">{task.notes}</p> : <span className="text-muted-foreground">—</span>}
-          </Row>
           {reviews.length > 0 && (
             <Row label="Review History">
               <ul className="space-y-2">

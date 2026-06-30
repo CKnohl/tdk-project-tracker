@@ -29,7 +29,8 @@ export type ActivityAction =
   | 'created' | 'updated' | 'deleted' | 'status_changed'
   | 'assigned' | 'unassigned' | 'restored' | 'commented';
 export type CalendarEventType =
-  | 'deadline' | 'meeting' | 'submittal' | 'site_visit' | 'follow_up' | 'milestone' | 'custom';
+  | 'deadline' | 'meeting' | 'submittal' | 'site_visit' | 'follow_up' | 'milestone' | 'custom'
+  | 'presentation' | 'town_meeting' | 'inspection';
 export type ContactRole =
   | 'client' | 'attorney' | 'contractor' | 'surveyor' | 'planner'
   | 'municipal_reviewer' | 'architect' | 'engineer' | 'inspector' | 'other';

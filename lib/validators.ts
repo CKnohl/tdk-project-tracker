@@ -29,6 +29,7 @@ export const contactRoleEnum = z.enum([
 ]);
 export const calendarEventTypeEnum = z.enum([
   'deadline', 'meeting', 'submittal', 'site_visit', 'follow_up', 'milestone', 'custom',
+  'presentation', 'town_meeting', 'inspection',
 ]);
 
 const optionalDate = z.string().date().optional().or(z.literal('').transform(() => undefined));

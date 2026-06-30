@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { projectSchema, type ProjectInput } from '@/lib/validators';
-import { requireEditor, requireManager, fail, errMessage, type ActionResult } from './_helpers';
+import { requireEditor, requireManager, requireProjectManager, fail, errMessage, type ActionResult } from './_helpers';
 import { notifyProjectTeam, notifyProjectAssigned, notifyDeadlineChanged } from '@/lib/notify';
 import { WORKFLOW_STATE, PHASE_ORDER, PROJECT_PHASE } from '@/lib/constants';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -198,7 +198,14 @@ export async function setProjectStatus(
   inactiveReason?: InactiveReason,
 ): Promise<ActionResult> {
   try {
-    await requireEditor();
+    // V5 item 6: completing/archiving a project (→ inactive) is restricted to the
+    // project's Manager, a Project Lead, or an admin (canManageProject). Active ↔
+    // On Hold stays editor-level. requireProjectManager enforces the project scope.
+    if (status === 'inactive') {
+      await requireProjectManager(id);
+    } else {
+      await requireEditor();
+    }
     if (status === 'inactive' && !inactiveReason) return fail('Select why the project is inactive.');
     const supabase = await createClient();
     const { error } = await supabase
