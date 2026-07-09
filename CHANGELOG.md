@@ -5,6 +5,31 @@ per-sprint `docs/HANDOFF_V*.md` files going forward — those stay as history; n
 changes are recorded here. Reserve a dedicated design doc only for large
 architectural changes.
 
+## V5.1 — Polish: navigation & My Work cleanup
+
+### Changed
+- **Recently Viewed removed** from My Work — it consumed vertical space without helping
+  people get work done (⌘K search is faster to reopen something). The orphaned
+  `recently-viewed.tsx` / `recent-tracker.tsx` and every `<RecentTracker/>` drop were
+  deleted with it.
+- **Count badges standardized to `9+`** — a shared `formatBadgeCount()` helper caps the
+  compact nav badges (sidebar My Work, notification bell, My Work folder rail) at `9+`
+  once the count passes 9. Canonical figures (dashboard Priority tiles, My Work Summary
+  tiles, section headers) still show the real number.
+- **Notifications removed from the sidebar** — Notifications live in the bell popover and
+  the My Work **Inbox**. `/notifications` is kept only as a redirect for old bookmarks.
+- **Dashboard pared to one screen** — the "Upcoming Meetings" strip was removed (it lives
+  on the Calendar); "Today's Schedule" is now a single full-width strip. Priority Focus →
+  health/attention → Today's Schedule → Office Summary, no scrolling, no duplicate lists.
+  The now-dead `upcomingMeetings` query was dropped from `getOfficeOverview`.
+
+### Fixed
+- **Due / Priority Items navigation** audited end-to-end: opening a project from Overdue /
+  Due Today / Due This Week / High Priority now returns to the **exact filtered Due view**
+  (in-app Back *and* browser Back), with filter + scroll restored — via the shared
+  origin-aware back-stack, no hard-coded `/projects`. Priority Items also gained a
+  `BackLink` to its origin so it fully participates in the shared navigation system.
+
 ## V5 — Workflow, UX & navigation
 
 ### Added
@@ -45,6 +70,13 @@ architectural changes.
 Apply `0029` → `0035` in order via `supabase db push`. All additive/idempotent.
 
 ### Deferred / roadmap
+- **Staff offboarding workflow** (next big operational feature). Deactivating a staff
+  member should be gated on their live ownership: block until **projects they lead**,
+  **tasks assigned**, **pending reviews**, **general tasks**, and **calendar events** are
+  reassigned or explicitly cleared, with inline "Assign new lead / Bulk reassign / Assign
+  reviewer" actions. Completed & historical work **stays attributed** to them (audit
+  history never changes); they simply drop out of assignment pickers. A prominent PM
+  alert fires if a project is left without responsible leadership.
 - Weekly & Monthly report generators; Reports as a broader documents area (meeting
   minutes, field reports, exports).
 - Schedule → full "where do I have to be?" (meetings, inspections, town meetings,

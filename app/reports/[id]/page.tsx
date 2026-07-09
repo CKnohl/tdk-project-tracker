@@ -6,7 +6,6 @@ import { createClient } from '@/lib/supabase/server';
 import { cn, formatDate, formatDateTime } from '@/lib/utils';
 import { PROJECT_STATUS, SUBMITTAL_STATUS, TASK_PRIORITY, WORKFLOW_STATE } from '@/lib/constants';
 import { PrintButton } from '@/components/reports/print-button';
-import { RecentTracker } from '@/components/shared/recent-tracker';
 import { BackLink } from '@/components/shared/back-link';
 import { getReportPdfSignedUrl } from '@/lib/reports/storage';
 import type { ReportSnapshot } from '@/lib/data/reports';
@@ -54,19 +53,13 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
 
   if (report.report_type === 'self_report') {
     const selfSnap = report.snapshot as unknown as SelfReportSnapshot;
-    return (
-      <>
-        <RecentTracker kind="report" id={report.id} label={`Self Report — ${selfSnap.subject.full_name}`} href={`/reports/${report.id}`} />
-        <SelfReportView snap={selfSnap} generatorName={generatorName} pdfUrl={pdfUrl} />
-      </>
-    );
+    return <SelfReportView snap={selfSnap} generatorName={generatorName} pdfUrl={pdfUrl} />;
   }
 
   const snap = report.snapshot as unknown as ReportSnapshot;
 
   return (
     <div className="min-h-screen bg-slate-100 py-8 text-slate-900 print:bg-white print:py-0">
-      <RecentTracker kind="report" id={report.id} label="Ready Report" href={`/reports/${report.id}`} />
       <style
         dangerouslySetInnerHTML={{
           __html: '@media print { @page { margin: 14mm; } }',

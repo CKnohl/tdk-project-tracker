@@ -11,7 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { ICONS, TYPE_LABEL } from '@/components/notifications/notifications-list';
 import { markNotificationRead, markAllNotificationsRead } from '@/lib/actions/notifications';
 import { useBadgeData } from '@/lib/hooks/use-badge-data';
-import { cn, formatDateTime, formatRelative } from '@/lib/utils';
+import { cn, formatBadgeCount, formatDateTime, formatRelative } from '@/lib/utils';
 import type { NotificationItem } from '@/lib/types';
 
 /**
@@ -79,7 +79,7 @@ export function NotificationBell() {
           <Bell className={cn('h-4 w-4', pulse && 'animate-bounce')} />
           {unread > 0 && (
             <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-medium text-destructive-foreground">
-              {unread > 9 ? '9+' : unread}
+              {formatBadgeCount(unread)}
             </span>
           )}
         </Button>

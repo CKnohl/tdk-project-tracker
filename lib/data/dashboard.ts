@@ -1,13 +1,9 @@
-import { startOfDay, endOfDay, addDays } from 'date-fns';
+import { startOfDay, endOfDay } from 'date-fns';
 import { createClient } from '@/lib/supabase/server';
 import { getDueItems, type DueItem } from '@/lib/data/due-items';
 import { computeSchedule, type ScheduleSubmittal, type ScheduleTask } from '@/lib/schedule';
 import type { ProjectListItem, CompletedTaskItem } from '@/lib/types';
 import type { CalendarFeedRow, FollowUpNeededRow, ProjectPhaseRow, ProjectStatus, WorkflowState, InactiveReason, TaskStatus, TaskPriority } from '@/types/database.types';
-
-// Meeting-family event types for the dashboard "Upcoming Meetings" strip. Filtered
-// in JS (not SQL) so it stays valid even before the Phase C enum additions land.
-const MEETING_TYPES = new Set(['meeting', 'presentation', 'town_meeting', 'inspection', 'site_visit']);
 
 const PROJECT_SELECT =
   // NOTE: also used against v_awaiting_response_projects, a `select p.*` view
@@ -165,16 +161,15 @@ export async function getScheduleHealth(): Promise<ScheduleHealthSummary> {
 
 // ── V5 Office Dashboard ──────────────────────────────────────────────────────
 // Lean overview for the compact "command center" — counts + due buckets + today's
-// agenda + upcoming meetings, all from existing single sources (getDueItems, the
-// project counts, v_calendar_feed). Every tile/button links out to the one
-// canonical filtered list, so the dashboard never re-renders detail.
+// agenda, all from existing single sources (getDueItems, the project counts,
+// v_calendar_feed). Every tile/button links out to the one canonical filtered
+// list, so the dashboard never re-renders detail.
 
 export interface OfficeOverview {
   counts: { active: number; on_hold: number; inactive: number; awaiting: number };
   due: { overdue: number; today: number; week: number; high: number };
   needsAttention: number;
   todaySchedule: CalendarFeedRow[];
-  upcomingMeetings: CalendarFeedRow[];
 }
 
 export async function getOfficeOverview(): Promise<OfficeOverview> {
@@ -182,12 +177,11 @@ export async function getOfficeOverview(): Promise<OfficeOverview> {
   const now = new Date();
   const dayStart = startOfDay(now).toISOString();
   const dayEnd = endOfDay(now).toISOString();
-  const in14 = endOfDay(addDays(now, 14)).toISOString();
 
   const countBy = (status: 'active' | 'on_hold' | 'inactive') =>
     supabase.from('projects').select('*', { count: 'exact', head: true }).eq('status', status);
 
-  const [activeC, holdC, inactiveC, awaitingC, needsC, due, todayRes, meetingRes] = await Promise.all([
+  const [activeC, holdC, inactiveC, awaitingC, needsC, due, todayRes] = await Promise.all([
     countBy('active'),
     countBy('on_hold'),
     countBy('inactive'),
@@ -202,20 +196,7 @@ export async function getOfficeOverview(): Promise<OfficeOverview> {
       .order('start_at', { ascending: true })
       .limit(12)
       .returns<CalendarFeedRow[]>(),
-    supabase
-      .from('v_calendar_feed')
-      .select('*')
-      .eq('source', 'event')
-      .gte('start_at', dayStart)
-      .lte('start_at', in14)
-      .order('start_at', { ascending: true })
-      .limit(30)
-      .returns<CalendarFeedRow[]>(),
   ]);
-
-  const upcomingMeetings = (meetingRes.data ?? [])
-    .filter((e) => e.event_type && MEETING_TYPES.has(e.event_type))
-    .slice(0, 6);
 
   return {
     counts: {
@@ -227,6 +208,5 @@ export async function getOfficeOverview(): Promise<OfficeOverview> {
     due: { overdue: due.overdue.length, today: due.today.length, week: due.week.length, high: due.high.length },
     needsAttention: needsC.count ?? 0,
     todaySchedule: todayRes.data ?? [],
-    upcomingMeetings,
   };
 }

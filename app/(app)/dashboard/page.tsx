@@ -92,11 +92,8 @@ export default async function DashboardPage() {
         <StatusButton label="Waiting" count={overview.counts.awaiting} href="/projects?workflow=awaiting_response" dot="bg-sky-500" />
       </div>
 
-      {/* Schedule */}
-      <div className="grid gap-3 lg:grid-cols-2">
-        <ScheduleColumn title="Today's Schedule" items={overview.todaySchedule} empty="Nothing scheduled today." />
-        <ScheduleColumn title="Upcoming Meetings" items={overview.upcomingMeetings} empty="No upcoming meetings." />
-      </div>
+      {/* Today's schedule — a single, full-width strip. Upcoming meetings live on the Calendar. */}
+      <ScheduleColumn title="Today's Schedule" items={overview.todaySchedule} empty="Nothing scheduled today." />
 
       {/* Office Summary */}
       <div className="flex flex-wrap items-center gap-x-6 gap-y-1 rounded-lg border bg-card px-4 py-3 text-sm">

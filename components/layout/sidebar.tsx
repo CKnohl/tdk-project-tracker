@@ -6,7 +6,7 @@ import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { NAV_ITEMS, isActive } from './nav';
 import { Logo, LogoIcon } from '@/components/shared/logo';
 import { useBadgeData } from '@/lib/hooks/use-badge-data';
-import { cn } from '@/lib/utils';
+import { cn, formatBadgeCount } from '@/lib/utils';
 
 export function SidebarNav({ collapsed, onNavigate }: { collapsed?: boolean; onNavigate?: () => void }) {
   const pathname = usePathname();
@@ -39,7 +39,7 @@ export function SidebarNav({ collapsed, onNavigate }: { collapsed?: boolean; onN
             {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
             {!collapsed && badge > 0 && (
               <span className="ml-auto rounded-full bg-destructive px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-destructive-foreground">
-                {badge > 99 ? '99+' : badge}
+                {formatBadgeCount(badge)}
               </span>
             )}
             {collapsed && badge > 0 && (

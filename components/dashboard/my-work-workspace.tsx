@@ -12,12 +12,11 @@ import { Input } from '@/components/ui/input';
 import { TaskRow, SubmittalRowItem, ProjectRowItem, WidgetList } from '@/components/dashboard/rows';
 import { NotificationsList } from '@/components/notifications/notifications-list';
 import { ReviewQueue } from '@/components/dashboard/review-queue';
-import { RecentlyViewed } from '@/components/dashboard/recently-viewed';
 import { SelfReportButton } from '@/components/reports/self-report-button';
 import { EmptyState } from '@/components/shared/empty-state';
 import { MetaBadge } from '@/components/shared/meta-badge';
 import { WORKFLOW_STATE } from '@/lib/constants';
-import { cn, formatDate, formatDateTime, formatRelative } from '@/lib/utils';
+import { cn, formatBadgeCount, formatDate, formatDateTime, formatRelative } from '@/lib/utils';
 import type { MyWorkData, ReviewQueueItem, MyReportRow, ProjectWithStats } from '@/lib/data/my-work';
 import type { NotificationItem } from '@/lib/types';
 
@@ -188,8 +187,6 @@ export function MyWorkWorkspace({
         </div>
       )}
 
-      <RecentlyViewed />
-
       <div className="relative">
         <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
@@ -227,7 +224,7 @@ export function MyWorkWorkspace({
                   <span className="md:flex-1 md:text-left">{it.label}</span>
                   {it.count > 0 && (
                     <span className={cn('rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums', active ? 'bg-background text-foreground' : 'bg-muted text-muted-foreground')}>
-                      {it.count}
+                      {formatBadgeCount(it.count)}
                     </span>
                   )}
                 </button>

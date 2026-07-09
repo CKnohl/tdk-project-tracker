@@ -5,6 +5,7 @@ import { EmptyState } from '@/components/shared/empty-state';
 import { DueItemRow } from '@/components/dashboard/rows';
 import { getDueItems } from '@/lib/data/due-items';
 import { ScrollRestoration } from '@/components/shared/scroll-restoration';
+import { BackLink } from '@/components/shared/back-link';
 import { cn } from '@/lib/utils';
 
 export const metadata = { title: 'Priority Items' };
@@ -29,6 +30,7 @@ export default async function DuePage({ searchParams }: { searchParams: Promise<
   return (
     <div className="space-y-5">
       <ScrollRestoration storageKey="tdk-due-scroll" />
+      <BackLink fallbackHref="/dashboard" fallbackLabel="Dashboard" />
       <PageHeader
         title="Priority Items"
         description="Every task and submittal due now or soon, across all projects. Open any item to view details or its project."

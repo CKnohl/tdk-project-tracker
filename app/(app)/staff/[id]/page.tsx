@@ -16,7 +16,6 @@ import { SubmittalRowItem, WidgetList } from '@/components/dashboard/rows';
 import { StaffProjectsCard } from '@/components/staff/staff-projects-card';
 import { StaffTasksCard } from '@/components/staff/staff-tasks-card';
 import { SelfReportButton } from '@/components/reports/self-report-button';
-import { RecentTracker } from '@/components/shared/recent-tracker';
 import { BackLink } from '@/components/shared/back-link';
 import { getCurrentUser } from '@/lib/auth';
 import { canManageProjects, rankOf } from '@/lib/permissions';
@@ -51,7 +50,6 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ id
 
   return (
     <div className="space-y-5">
-      <RecentTracker kind="staff" id={member.id} label={member.full_name} href={`/staff/${member.id}`} />
       <BackLink fallbackHref="/staff" fallbackLabel="Staff" />
 
       <div className="flex items-center justify-between gap-3">

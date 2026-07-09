@@ -76,6 +76,16 @@ export function describeDue(value: string | Date | null | undefined): {
   return { label: formatDate(d), tone: 'normal' };
 }
 
+/**
+ * Compact count for a notification/nav badge: exact 1–9, then "9+" once it passes
+ * 9 (standard UI convention). Use for the small red/pill badges throughout the app
+ * (sidebar, bell, My Work rail) — NOT for canonical figures like the dashboard
+ * Priority tiles or Summary counts, which should show the real number.
+ */
+export function formatBadgeCount(count: number): string {
+  return count > 9 ? '9+' : String(count);
+}
+
 export function initialsFromName(name: string | null | undefined) {
   if (!name) return '??';
   const parts = name.trim().split(/\s+/);
