@@ -1,5 +1,6 @@
 'use client';
 
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { ListChecks, FolderKanban, CalendarClock, FileWarning, Inbox } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { TaskRow, SubmittalRowItem, ProjectRowItem, WidgetList } from '@/components/dashboard/rows';
@@ -21,10 +22,22 @@ export function MyWorkTabs({
   // Personal deadlines = overdue first, then upcoming (already due-date sorted upstream).
   const deadlines = [...data.overdue, ...data.upcoming];
   const unread = notifications.filter((n) => !n.is_read).length;
-  const initial = TABS.includes(defaultTab) ? defaultTab : 'tasks';
+
+  // Tab lives in the URL so returning from a record restores the last tab (state
+  // preservation). Uses replace (no history spam) + scroll:false (no jump).
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const urlTab = searchParams.get('tab') ?? defaultTab;
+  const value = TABS.includes(urlTab) ? urlTab : 'tasks';
+  const onChange = (v: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('tab', v);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
 
   return (
-    <Tabs defaultValue={initial}>
+    <Tabs value={value} onValueChange={onChange}>
       <TabsList className="w-full justify-start">
         <TabsTrigger value="tasks">To Do {data.tasks.length > 0 && `(${data.tasks.length})`}</TabsTrigger>
         <TabsTrigger value="inbox">

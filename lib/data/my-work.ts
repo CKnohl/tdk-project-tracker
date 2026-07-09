@@ -2,7 +2,10 @@ import { addDays, format } from 'date-fns';
 import { createClient } from '@/lib/supabase/server';
 import { rankOf, type RoleKey } from '@/lib/permissions';
 import type { TaskWithProject, SubmittalWithProject, ProjectListItem, ProjectRef } from '@/lib/types';
-import type { TaskPriority } from '@/types/database.types';
+import type { TaskPriority, ProjectStatsRow } from '@/types/database.types';
+
+/** A My Work project enriched with its at-a-glance stats (project-inbox rows). */
+export type ProjectWithStats = ProjectListItem & { stats: ProjectStatsRow | null };
 
 const iso = (d: Date) => format(d, 'yyyy-MM-dd');
 const OPEN_TASK = '(completed,cancelled)';
@@ -19,7 +22,7 @@ export interface MyWorkData {
   overdue: TaskWithProject[];
   upcoming: TaskWithProject[];
   submittals: SubmittalWithProject[];
-  projects: ProjectListItem[];
+  projects: ProjectWithStats[];
 }
 
 const EMPTY: MyWorkData = {
@@ -67,13 +70,24 @@ export async function getMyWork(staffId: string | null): Promise<MyWorkData> {
   const overdue = allTasks.filter((t) => t.due_date && t.due_date < todayStr);
   const upcoming = allTasks.filter((t) => t.due_date && t.due_date >= todayStr && t.due_date <= in14Str);
 
+  // Enrich projects with at-a-glance stats for the project-inbox rows.
+  const projRows = projects.data ?? [];
+  const statsMap = new Map<string, ProjectStatsRow>();
+  if (projRows.length) {
+    const { data: stats } = await supabase
+      .from('v_project_stats')
+      .select('*')
+      .in('project_id', projRows.map((p) => p.id));
+    for (const s of stats ?? []) statsMap.set(s.project_id, s);
+  }
+
   return {
     hasStaff: true,
     tasks: allTasks,
     overdue,
     upcoming,
     submittals: submittals.data ?? [],
-    projects: projects.data ?? [],
+    projects: projRows.map((p) => ({ ...p, stats: statsMap.get(p.id) ?? null })),
   };
 }
 
@@ -141,4 +155,26 @@ export async function getReviewQueue(user: { role: RoleKey; staff_id: string | n
     review_requested_at: r.review_requested_at,
     submitter: r.review_requested_by ? nameById.get(r.review_requested_by) ?? null : null,
   }));
+}
+
+export interface MyReportRow {
+  id: string;
+  generated_at: string;
+  report_type: string;
+  summary: string | null;
+}
+
+/**
+ * Reports for the My Work "Reports" folder: the user's own self-reports plus any
+ * reports they generated. RLS already scopes report_runs (staff see only their own
+ * self-reports; managers see all), so this narrows the manager case to "mine".
+ */
+export async function getMyReports(userId: string, staffId: string | null): Promise<MyReportRow[]> {
+  const supabase = await createClient();
+  const base = supabase.from('report_runs').select('id, generated_at, report_type, summary');
+  const filtered = staffId
+    ? base.or(`subject_staff_id.eq.${staffId},generated_by.eq.${userId}`)
+    : base.eq('generated_by', userId);
+  const { data } = await filtered.order('generated_at', { ascending: false }).limit(20).returns<MyReportRow[]>();
+  return data ?? [];
 }

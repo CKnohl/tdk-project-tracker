@@ -16,7 +16,7 @@ import { markNotificationRead, markAllNotificationsRead, deleteNotification } fr
 import type { NotificationItem } from '@/lib/types';
 import type { NotificationType } from '@/types/database.types';
 
-const ICONS: Record<NotificationType, React.ComponentType<{ className?: string }>> = {
+export const ICONS: Record<NotificationType, React.ComponentType<{ className?: string }>> = {
   task_due_tomorrow: Clock,
   task_overdue: AlertTriangle,
   submittal_awaiting_too_long: FileWarning,
@@ -31,7 +31,7 @@ const ICONS: Record<NotificationType, React.ComponentType<{ className?: string }
   task_rejected: AlertTriangle,
 };
 
-const TYPE_LABEL: Record<NotificationType, string> = {
+export const TYPE_LABEL: Record<NotificationType, string> = {
   task_due_tomorrow: 'Task due tomorrow',
   task_overdue: 'Task overdue',
   submittal_awaiting_too_long: 'Submittal awaiting',

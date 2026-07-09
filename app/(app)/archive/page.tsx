@@ -3,6 +3,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { EmptyState } from '@/components/shared/empty-state';
 import { ArchiveList } from '@/components/projects/archive-list';
 import { ArchiveToolbar } from '@/components/projects/archive-toolbar';
+import { ScrollRestoration } from '@/components/shared/scroll-restoration';
 import { getCurrentUser } from '@/lib/auth';
 import { canEdit } from '@/lib/permissions';
 import { getProjects, type ProjectFilters } from '@/lib/data/projects';
@@ -24,6 +25,7 @@ export default async function ArchivePage({ searchParams }: { searchParams: Prom
 
   return (
     <div className="space-y-5">
+      <ScrollRestoration storageKey="tdk-archive-scroll" />
       <PageHeader title="Archive" description={`${projects.length} inactive project${projects.length === 1 ? '' : 's'} — completed, lost bid, cancelled, or fell through.`} />
       <ArchiveToolbar companies={companies} />
       {projects.length === 0 ? (

@@ -5,15 +5,22 @@ import { usePathname } from 'next/navigation';
 import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { NAV_ITEMS, isActive } from './nav';
 import { Logo, LogoIcon } from '@/components/shared/logo';
+import { useBadgeData } from '@/lib/hooks/use-badge-data';
 import { cn } from '@/lib/utils';
 
 export function SidebarNav({ collapsed, onNavigate }: { collapsed?: boolean; onNavigate?: () => void }) {
   const pathname = usePathname();
+  // My Work badge = unread notifications + pending reviews (no double-count of
+  // assignments, which are already notifications). Shared 15s poll with the bell.
+  const { data } = useBadgeData();
+  const myWorkBadge = (data?.unread ?? 0) + (data?.reviews ?? 0);
+
   return (
     <nav className={cn('flex flex-col gap-1 py-4', collapsed ? 'items-center px-2' : 'px-3')}>
       {NAV_ITEMS.map((item) => {
         const active = isActive(item, pathname);
         const Icon = item.icon;
+        const badge = item.href === '/my-work' ? myWorkBadge : 0;
         return (
           <Link
             key={item.href}
@@ -21,7 +28,7 @@ export function SidebarNav({ collapsed, onNavigate }: { collapsed?: boolean; onN
             onClick={onNavigate}
             title={collapsed ? item.label : undefined}
             className={cn(
-              'flex items-center rounded-md text-sm font-medium transition-colors',
+              'relative flex items-center rounded-md text-sm font-medium transition-colors',
               collapsed ? 'h-10 w-10 justify-center' : 'gap-3 px-3 py-2',
               active
                 ? 'bg-primary text-primary-foreground'
@@ -29,7 +36,15 @@ export function SidebarNav({ collapsed, onNavigate }: { collapsed?: boolean; onN
             )}
           >
             <Icon className="h-4 w-4 shrink-0" />
-            {!collapsed && item.label}
+            {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
+            {!collapsed && badge > 0 && (
+              <span className="ml-auto rounded-full bg-destructive px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-destructive-foreground">
+                {badge > 99 ? '99+' : badge}
+              </span>
+            )}
+            {collapsed && badge > 0 && (
+              <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-destructive" />
+            )}
           </Link>
         );
       })}

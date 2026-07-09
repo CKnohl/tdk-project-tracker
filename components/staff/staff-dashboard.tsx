@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -22,12 +23,43 @@ function Stat({ label, value, tone }: { label: string; value: React.ReactNode; t
 }
 
 export function StaffDashboard({ cards }: { cards: StaffDashboardCard[] }) {
-  const [q, setQ] = React.useState('');
-  const [sort, setSort] = React.useState<SortKey>('name');
-  const [filter, setFilter] = React.useState<FilterKey>('all');
+  // Search / sort / filter live in the URL so leaving to a staff member and coming
+  // Back restores the exact view (Application-State Preservation). Search filters
+  // instantly off local input; the URL is updated (debounced) for persistence.
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const q = searchParams.get('q') ?? '';
+  const sort = (searchParams.get('sort') as SortKey) || 'name';
+  const filter = (searchParams.get('filter') as FilterKey) || 'all';
+
+  const [qInput, setQInput] = React.useState(q);
+  React.useEffect(() => setQInput(q), [q]); // sync when the URL changes (e.g. Back)
+
+  const setParam = React.useCallback(
+    (updates: Record<string, string | null>) => {
+      const params = new URLSearchParams(searchParams.toString());
+      for (const [k, v] of Object.entries(updates)) {
+        if (!v) params.delete(k);
+        else params.set(k, v);
+      }
+      const qs = params.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    },
+    [router, pathname, searchParams],
+  );
+
+  // Persist the (instant) search term to the URL, debounced.
+  React.useEffect(() => {
+    const t = setTimeout(() => {
+      if (qInput !== q) setParam({ q: qInput.trim() || null });
+    }, 300);
+    return () => clearTimeout(t);
+  }, [qInput, q, setParam]);
 
   const visible = React.useMemo(() => {
-    const term = q.trim().toLowerCase();
+    const term = qInput.trim().toLowerCase();
     let rows = cards.filter((c) => !term || c.full_name.toLowerCase().includes(term));
     if (filter === 'overdue') rows = rows.filter((c) => c.overdueTasks > 0);
     else if (filter === 'review') rows = rows.filter((c) => c.reviewQueue > 0);
@@ -41,16 +73,16 @@ export function StaffDashboard({ cards }: { cards: StaffDashboardCard[] }) {
         default: return a.full_name.localeCompare(b.full_name);
       }
     });
-  }, [cards, q, sort, filter]);
+  }, [cards, qInput, sort, filter]);
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-[200px] flex-1">
           <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search staff…" className="pl-8" />
+          <Input value={qInput} onChange={(e) => setQInput(e.target.value)} placeholder="Search staff…" className="pl-8" />
         </div>
-        <Select value={filter} onValueChange={(v) => setFilter(v as FilterKey)}>
+        <Select value={filter} onValueChange={(v) => setParam({ filter: v === 'all' ? null : v })}>
           <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All staff</SelectItem>
@@ -59,7 +91,7 @@ export function StaffDashboard({ cards }: { cards: StaffDashboardCard[] }) {
             <SelectItem value="leadership">Leadership</SelectItem>
           </SelectContent>
         </Select>
-        <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
+        <Select value={sort} onValueChange={(v) => setParam({ sort: v === 'name' ? null : v })}>
           <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="name">Name (A–Z)</SelectItem>

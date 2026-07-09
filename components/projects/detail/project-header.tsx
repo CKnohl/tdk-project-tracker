@@ -1,10 +1,9 @@
 'use client';
 
 import * as React from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { ChevronLeft, MoreHorizontal, Pencil, Archive, RotateCcw, Trash2 } from 'lucide-react';
+import { MoreHorizontal, Pencil, Archive, RotateCcw, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
@@ -19,7 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { MetaBadge } from '@/components/shared/meta-badge';
 import { ProjectStatusBadge } from '@/components/shared/status-indicator';
 import { ProjectForm } from '@/components/projects/project-form';
-import { PROJECTS_QUERY_KEY } from '@/components/projects/projects-toolbar';
+import { BackLink } from '@/components/shared/back-link';
 import { WORKFLOW_STATE } from '@/lib/constants';
 import {
   setWorkflowState,
@@ -59,18 +58,6 @@ export function ProjectHeader({
 }) {
   const router = useRouter();
   const [editing, setEditing] = React.useState(false);
-  // Restore the user's last /projects filter/search so Back returns them to the
-  // list exactly as they left it. Falls back to bare /projects (e.g. arrived
-  // here from search or a notification).
-  const [backHref, setBackHref] = React.useState('/projects');
-  React.useEffect(() => {
-    try {
-      const q = sessionStorage.getItem(PROJECTS_QUERY_KEY);
-      if (q) setBackHref(`/projects${q}`);
-    } catch {
-      /* storage unavailable — keep default */
-    }
-  }, []);
   const currentPhase = phases.find((p) => p.is_current) ?? null;
   const currentPhaseLabel = currentPhase?.name ?? project.current_phase_name ?? null;
 
@@ -83,9 +70,7 @@ export function ProjectHeader({
   return (
     <div className="space-y-3">
       <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-sm text-muted-foreground">
-        <Link href={backHref} className="inline-flex items-center gap-1 hover:text-foreground">
-          <ChevronLeft className="h-4 w-4" /> Projects
-        </Link>
+        <BackLink fallbackHref="/projects" fallbackLabel="Projects" />
         <span aria-hidden className="text-muted-foreground/40">/</span>
         <span className="font-mono text-foreground/80">{project.project_number}</span>
       </nav>

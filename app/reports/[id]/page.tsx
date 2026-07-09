@@ -1,6 +1,5 @@
-import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
-import { ArrowLeft, Download } from 'lucide-react';
+import { Download } from 'lucide-react';
 import { getCurrentUser } from '@/lib/auth';
 import { canManageProjects } from '@/lib/permissions';
 import { createClient } from '@/lib/supabase/server';
@@ -8,6 +7,7 @@ import { cn, formatDate, formatDateTime } from '@/lib/utils';
 import { PROJECT_STATUS, SUBMITTAL_STATUS, TASK_PRIORITY, WORKFLOW_STATE } from '@/lib/constants';
 import { PrintButton } from '@/components/reports/print-button';
 import { RecentTracker } from '@/components/shared/recent-tracker';
+import { BackLink } from '@/components/shared/back-link';
 import { getReportPdfSignedUrl } from '@/lib/reports/storage';
 import type { ReportSnapshot } from '@/lib/data/reports';
 import type { SelfReportSnapshot } from '@/lib/data/self-report';
@@ -75,9 +75,7 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
 
       {/* Toolbar — hidden when printing */}
       <div className="mx-auto mb-4 flex max-w-3xl items-center justify-between px-4 print:hidden">
-        <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-sm text-slate-600 hover:text-slate-900">
-          <ArrowLeft className="h-4 w-4" /> Back to dashboard
-        </Link>
+        <BackLink fallbackHref="/dashboard" fallbackLabel="Dashboard" className="text-slate-600 hover:text-slate-900" />
         <div className="flex items-center gap-2">
           {pdfUrl && (
             <a
@@ -362,9 +360,7 @@ function SelfReportView({
       <style dangerouslySetInnerHTML={{ __html: '@media print { @page { margin: 14mm; } }' }} />
 
       <div className="mx-auto mb-4 flex max-w-3xl items-center justify-between px-4 print:hidden">
-        <Link href="/my-work" className="inline-flex items-center gap-1.5 text-sm text-slate-600 hover:text-slate-900">
-          <ArrowLeft className="h-4 w-4" /> Back to My Work
-        </Link>
+        <BackLink fallbackHref="/my-work" fallbackLabel="My Work" className="text-slate-600 hover:text-slate-900" />
         <div className="flex items-center gap-2">
           {pdfUrl && (
             <a

@@ -3,6 +3,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { EmptyState } from '@/components/shared/empty-state';
 import { ActivityRow } from '@/components/dashboard/rows';
 import { getActivityFeed } from '@/lib/data/activity';
+import { ScrollRestoration } from '@/components/shared/scroll-restoration';
 
 export const metadata = { title: 'Activity' };
 
@@ -11,6 +12,7 @@ export default async function ActivityPage() {
 
   return (
     <div className="space-y-5">
+      <ScrollRestoration storageKey="tdk-activity-scroll" />
       <PageHeader title="Activity" description="Everything happening across all projects, newest first." />
       {items.length === 0 ? (
         <EmptyState icon={Activity} title="No activity yet" description="Project changes will show up here as they happen." />
