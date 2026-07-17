@@ -39,7 +39,7 @@ export function AppShell({ user, children }: { user: ShellUser; children: React.
   return (
     <div className="min-h-screen bg-muted/50">
       <PointerEventsGuard />
-      <Sidebar collapsed={collapsed} onToggle={toggle} />
+      <Sidebar collapsed={collapsed} onToggle={toggle} role={user.role} />
       <div className={cn('flex min-h-screen flex-col transition-[padding] duration-200', collapsed ? 'md:pl-16' : 'md:pl-60')}>
         <Topbar user={user} />
         <main className="flex-1 p-4 md:p-6">

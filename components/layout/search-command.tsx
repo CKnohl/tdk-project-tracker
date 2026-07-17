@@ -8,8 +8,9 @@ import { Input } from '@/components/ui/input';
 import { StatusRail } from '@/components/shared/status-rail';
 import { projectRailState } from '@/lib/status-rail';
 import { createClient } from '@/lib/supabase/client';
-import { NAV_ITEMS } from './nav';
+import { visibleNavItems } from './nav';
 import { PROJECT_STATUS } from '@/lib/constants';
+import { rankOf, type RoleKey } from '@/lib/permissions';
 import { cn } from '@/lib/utils';
 import type { ProjectStatus } from '@/types/database.types';
 
@@ -42,7 +43,7 @@ interface StaffHit {
  * actions, jump-to-page navigation, and staff lookup — so power users can drive
  * the whole app from the keyboard once there are hundreds of projects.
  */
-export function SearchCommand() {
+export function SearchCommand({ role }: { role?: RoleKey }) {
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const [q, setQ] = React.useState('');
@@ -104,7 +105,9 @@ export function SearchCommand() {
     { key: 'new-project', group: 'Actions', label: 'New project', sub: 'Create a project', icon: Plus, onSelect: () => navTo('/projects/new') },
     { key: 'new-task', group: 'Actions', label: 'New general task', sub: 'Create a task', icon: Plus, onSelect: () => navTo('/tasks') },
   ];
-  const navCmds: Command[] = NAV_ITEMS.map((n) => ({
+  // Role-gated: PM/Admin-only destinations (e.g. Operations Center) never appear in
+  // an engineer's command palette.
+  const navCmds: Command[] = visibleNavItems(rankOf(role)).map((n) => ({
     key: `nav-${n.href}`, group: 'Go to', label: n.label, icon: n.icon, onSelect: () => navTo(n.href),
   }));
   const projectCmds: Command[] = projects.map((p) => ({

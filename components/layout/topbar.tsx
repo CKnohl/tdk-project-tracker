@@ -29,12 +29,12 @@ export function Topbar({
         <SheetContent side="left" className="w-64 p-0">
           <SheetTitle className="sr-only">Navigation</SheetTitle>
           <SidebarBrand />
-          <SidebarNav onNavigate={() => setOpen(false)} />
+          <SidebarNav onNavigate={() => setOpen(false)} role={user.role} />
         </SheetContent>
       </Sheet>
 
       <div className="flex flex-1 items-center">
-        <SearchCommand />
+        <SearchCommand role={user.role} />
       </div>
 
       <ThemeToggle />

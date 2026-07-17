@@ -5,6 +5,155 @@ per-sprint `docs/HANDOFF_V*.md` files going forward — those stay as history; n
 changes are recorded here. Reserve a dedicated design doc only for large
 architectural changes.
 
+## V6 — Phase 1.3: Operations Center polish & hardening
+
+A friction-removal sprint before daily use — no new workflows, no OCR, no AI, no redesign.
+
+### Intake Queue
+- Renamed the **New** tab to **Needs Filing** (clearer status wording).
+- **Document multi-select + bulk lifecycle:** per-row checkboxes, Select all, and bulk
+  **Start / Reopen / Archive** (never bulk filing). Keyboard `x` selects the highlighted row,
+  `Esc` clears.
+- **Duplicate detection:** documents with the same filename + size are flagged "possible
+  duplicate" (no AI, no server call).
+
+### Proposal Review
+- **Search box** across title / project / assignee / reasoning / category / source document.
+- **Sort** (Newest / Confidence / Due date) alongside the existing grouping.
+- **Restore** on rejected/archived proposals (undo an accidental dismiss → editable again).
+- Guided empty state that points to the Intake Queue.
+
+### Consistency / a11y
+- Operations Center tabs are proper `role="tab"` with `aria-selected`; selection checkboxes
+  carry aria-labels; statuses and button color-hierarchy made consistent across both views.
+
+### Reused — no new tables, no new write paths
+- Bulk document status reuses the same `intake_documents` update; Restore reuses the proposal
+  store; display helpers are shared between the inline list and the workspace. No migration.
+
+## V6 — Phase 1.2: PM review workspace
+
+Turns the proposal list into a real review workspace for processing dozens of documents a
+day. **No change to interpretation or the Apply Engine** — this is purely the human review
+experience.
+
+### Added
+- **Operations Center is now two tabs:** *Intake Queue* (documents + interpret, unchanged)
+  and *Proposal Review* (a cross-document workspace with a "needs review" count).
+- **Filter** (All · Needs review · High confidence · Tasks · Submittals · Notes · Calendar ·
+  Unknown · Applied · Rejected · Archived) and **group** (Document · Project · Type ·
+  Confidence · Status).
+- **Multi-select** (per-row checkboxes, Select all of the current filter, `a` to select-all,
+  `Esc` to clear) + **bulk Approve / Reject / Archive / Delete**.
+- **Bulk Approve shows a confirmation summary** ("You are about to create: 8 Tasks, 2 Notes,
+  …") and a **per-item results dialog** ("13 applied · 2 failed") with expandable error
+  details. The batch **never stops on a failure** — each proposal is applied independently.
+- New **archived** proposal state (dismiss without rejecting).
+
+### Reused — no new write path
+- **Bulk Approve loops the existing `approveProposal`** (the Phase 1.1 Apply Engine), so
+  every created record still goes through the existing server actions, activity logging, and
+  notifications. **Reject/Archive/Delete touch only the proposal store** — never a tracker
+  table; applied proposals are left untouched so their audit link is preserved. Display
+  helpers are shared between the inline list and the workspace (one definition).
+
+### Migrations
+Apply `0039_proposal_archived_state.sql` via `supabase db push`, then `npm run types:gen`.
+Additive/idempotent: allows the `archived` proposal state. No tracker tables touched.
+
+## V6 — Phase 1.1: Proposal Apply Engine
+
+Turns an **approved** proposal into a real tracker record — by calling the **existing**
+server actions, never by writing tracker tables directly. This is the one place proposals
+cross into the tracker, and it does so through the same doors a human uses.
+
+### Added
+- **Approve** on a proposal → the Apply Engine calls the matching existing action:
+  task → `createTask`, general task → `createGeneralTask`, note → `createNote`,
+  submittal → `createSubmittal`, calendar → `createCalendarEvent`. Approve is **gated** on a
+  valid destination (project-scoped types need a matched project; calendar needs a date), so
+  the PM edits first instead of failing.
+- After apply, the proposal records **applied_at / applied_by / resulting object type + id**
+  and keeps its original reasoning + source text (nothing is deleted). The card shows
+  **"Applied — created a Task", a "View created →" jump-link, and Undo**.
+- **Undo** removes the created object via the existing delete action and returns the proposal
+  to an editable state (the proposal itself is never deleted).
+
+### Reused (no new write path, no duplication)
+- **Server actions** are the only write path — so validation, permissions, **activity logging
+  (the "created" entry is written by the existing triggers, attributed to the approving PM)**,
+  and **notifications** all come from the existing systems. No new notification path; no
+  manual activity insert.
+
+### Migrations
+Apply `0038_proposal_apply.sql` via `supabase db push`, then `npm run types:gen`. Additive/
+idempotent: adds `applied_at/applied_by/applied_entity_type/applied_entity_id` to
+`intake_proposals` and allows the `approved` state. No tracker tables are touched.
+
+## V6 — Phase 1: interpretation → proposals *(no writes, no approvals)*
+
+Second V6 phase. A PM clicks **Interpret** on an intake document and gets **proposed
+changes to review** — like a junior engineer's recommendations. **Nothing is written to
+any project, task, submittal, note, or the calendar.** Approve/apply, automatic filing, and
+project updates are explicitly out of this phase.
+
+### Added
+- **Interpret** action on each intake document → proposals stored in a new
+  `intake_proposals` table (the single owner of pending AI suggestions; it never touches
+  tracker tables). Proposals can be **Edited / Rejected / Commented** — all on the proposal
+  row only.
+- Each proposal shows **type + category, a confidence *band* (never a number), reasoning,
+  a verbatim source quote, suggested destination (existing / new-candidate / unknown
+  project), assignee, due date, and uncertainties** — with a persistent "Interpreted —
+  nothing has been changed" framing.
+- **Text-only interpretation** (per the frozen spec — OCR stays Phase 2): interprets pasted
+  text and text-extractable files. A scanned file prompts "paste the text to interpret now,"
+  so it's useful before OCR lands.
+
+### Notes
+- **Interpretation is gated OFF by default** (charter SEC-2). No document text leaves the
+  building unless **both** `OPENAI_API_KEY` is set **and** `INTAKE_INTERPRET_ENABLED=true`,
+  after you sign off on the data-governance boundary. Reuses the existing `lib/ai.ts` OpenAI
+  pattern; the document is treated as untrusted data (prompt-injection hardened) and — because
+  nothing is ever auto-applied — an injected instruction can't cause a tracker change.
+
+### Migrations
+Apply `0037_intake_proposals.sql` via `supabase db push`, then `npm run types:gen`.
+Additive/idempotent: new `intake_proposals` table (RLS rank ≥ 30, dedupe unique index). No
+existing data changes; writes nothing to tracker tables.
+
+## V6 — Phase 0: Operations Center intake *(shell, no AI)*
+
+First V6 phase, governed by `docs/V6_DEVELOPMENT_CHARTER.md`. Adds an **office-level
+intake surface** where documents land before they're on a project. **No AI yet** —
+documents are viewed and **manually** filed to a project through the existing note/task
+actions. Nothing changes a project until a PM deliberately files a document.
+
+### Added
+- **Operations Center** page at `/operations`, **PM/Admin only** (rank ≥ 30). Engineers
+  never see it — the sidebar **and** the ⌘K palette hide it, and the page guards a typed URL.
+- **Intake queue:** a Gmail/Outlook-style processing queue for the dozens of documents a
+  PM handles each morning. Upload (multi-file **and** drag-drop) → documents land in the
+  private `intake` bucket + `intake_documents` rows. **Status tabs** New / In Progress /
+  Filed / Archived with live counts; **keyboard navigation** (↑/↓ move, `f` file, `o` open,
+  `e` archive); per-row **View / File / Start / Archive / Reopen**. **File to a project** as
+  a note or task (reusing `createNote` / `createTask`) — records who filed it and when.
+  Rich metadata: type icon, size, source, uploader, timestamps.
+
+### Changed
+- Sidebar nav **and ⌘K** are now **role-aware** (`minRank` on nav items; role threaded via
+  AppShell/Topbar) — the mechanism the Operations Center uses to stay PM/Admin-only.
+- Firm-wide activity is **not** duplicated inside the Operations Center — it keeps its one
+  home at `/activity` (visible to all roles), so the Operations Center stays focused on intake.
+
+### Migrations
+Apply `0036_intake_documents.sql` via `supabase db push`, then `npm run types:gen`.
+Additive/idempotent: new `intake_documents` table (RLS rank ≥ 30) + private `intake`
+storage bucket; lifecycle `received → in_progress → filed → archived` (reopenable), with
+`filed_at` / `filed_by` for quick display. No existing data changes. Does **not** trigger
+`activity_logs` — filing creates project activity through the existing note/task triggers,
+so activity stays single-sourced.
+
 ## V5.1 — Polish: navigation & My Work cleanup
 
 ### Changed

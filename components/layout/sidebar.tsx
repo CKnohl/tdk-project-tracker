@@ -3,21 +3,24 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
-import { NAV_ITEMS, isActive } from './nav';
+import { visibleNavItems, isActive } from './nav';
 import { Logo, LogoIcon } from '@/components/shared/logo';
 import { useBadgeData } from '@/lib/hooks/use-badge-data';
+import { rankOf, type RoleKey } from '@/lib/permissions';
 import { cn, formatBadgeCount } from '@/lib/utils';
 
-export function SidebarNav({ collapsed, onNavigate }: { collapsed?: boolean; onNavigate?: () => void }) {
+export function SidebarNav({ collapsed, onNavigate, role }: { collapsed?: boolean; onNavigate?: () => void; role?: RoleKey }) {
   const pathname = usePathname();
   // My Work badge = unread notifications + pending reviews (no double-count of
   // assignments, which are already notifications). Shared 15s poll with the bell.
   const { data } = useBadgeData();
   const myWorkBadge = (data?.unread ?? 0) + (data?.reviews ?? 0);
+  // Role-gated nav: the Operations Center (minRank 30) only renders for PM/Admin.
+  const items = visibleNavItems(rankOf(role));
 
   return (
     <nav className={cn('flex flex-col gap-1 py-4', collapsed ? 'items-center px-2' : 'px-3')}>
-      {NAV_ITEMS.map((item) => {
+      {items.map((item) => {
         const active = isActive(item, pathname);
         const Icon = item.icon;
         const badge = item.href === '/my-work' ? myWorkBadge : 0;
@@ -71,7 +74,7 @@ export function SidebarBrand({ collapsed }: { collapsed?: boolean }) {
   );
 }
 
-export function Sidebar({ collapsed = false, onToggle }: { collapsed?: boolean; onToggle?: () => void }) {
+export function Sidebar({ collapsed = false, onToggle, role }: { collapsed?: boolean; onToggle?: () => void; role?: RoleKey }) {
   return (
     <aside
       className={cn(
@@ -81,7 +84,7 @@ export function Sidebar({ collapsed = false, onToggle }: { collapsed?: boolean; 
     >
       <SidebarBrand collapsed={collapsed} />
       <div className="flex-1 overflow-x-hidden overflow-y-auto scrollbar-thin">
-        <SidebarNav collapsed={collapsed} />
+        <SidebarNav collapsed={collapsed} role={role} />
       </div>
       <div className={cn('border-t p-2', collapsed && 'flex justify-center')}>
         <button

@@ -120,6 +120,30 @@ export type ReportRunRow = {
   report_type: string; pdf_path: string | null; summary: string | null;
   snapshot: Json; created_at: string; subject_staff_id: string | null;
 };
+// V6 Phase 0 — Operations Center intake store (pre-project document landing zone).
+export type IntakeSourceType = 'upload' | 'email' | 'meeting' | 'scan' | 'other';
+export type IntakeStatus = 'received' | 'in_progress' | 'filed' | 'archived';
+export type IntakeDocumentRow = Timestamps & {
+  id: string; source_type: IntakeSourceType; storage_path: string; file_name: string;
+  mime_type: string | null; size_bytes: number | null; status: IntakeStatus;
+  filed_project_id: string | null; filed_at: string | null; filed_by: string | null;
+  note: string | null; uploaded_by: string | null;
+};
+// V6 Phase 1 — AI proposal store (pending suggestions from interpreting a document).
+// Nothing here is ever written to a tracker table; approve/apply is a later phase.
+export type ProposalType = 'task' | 'general_task' | 'note' | 'submittal' | 'calendar_event';
+export type ProjectMatchVerdict = 'existing' | 'new_candidate' | 'unknown';
+export type ProposalState = 'proposed' | 'edited' | 'rejected' | 'approved' | 'archived';
+export type IntakeProposalRow = Timestamps & {
+  id: string; intake_document_id: string; proposal_type: ProposalType; category: string | null;
+  title: string; fields: Json; confidence: number; reasoning: string | null; source_text: string | null;
+  project_match: ProjectMatchVerdict | null; matched_project_id: string | null;
+  suggested_project_ref: string | null; suggested_assignee: string | null; suggested_due_date: string | null;
+  uncertainties: string | null; state: ProposalState; comment: string | null;
+  dedupe_key: string | null; created_by: string | null;
+  applied_at: string | null; applied_by: string | null;
+  applied_entity_type: ProposalType | null; applied_entity_id: string | null;
+};
 
 export type CalendarFeedRow = {
   feed_id: string; source: string; event_type: CalendarEventType; project_id: string | null;
@@ -162,6 +186,8 @@ export type Database = {
       notification_preferences: TableDef<NotificationPreferenceRow>;
       report_runs: TableDef<ReportRunRow>;
       project_phases: TableDef<ProjectPhaseRow>;
+      intake_documents: TableDef<IntakeDocumentRow>;
+      intake_proposals: TableDef<IntakeProposalRow>;
     };
     Views: {
       v_calendar_feed: ViewDef<CalendarFeedRow>;
