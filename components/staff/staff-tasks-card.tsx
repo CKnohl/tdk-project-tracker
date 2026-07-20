@@ -109,7 +109,7 @@ export function StaffTasksCard({
                 <Link href={`/projects/${t.project_id}?tab=tasks`} className="min-w-0 flex-1">
                   <div className="truncate text-sm font-medium">{t.name}</div>
                   <div className="truncate text-xs text-muted-foreground">
-                    {t.project_number ? `${t.project_number} · ${t.project_name}` : '—'}
+                    {t.project_number ? `${t.project_number} · ${t.project_name}` : 'General task'}
                   </div>
                 </Link>
                 <div className="flex shrink-0 items-center gap-2">

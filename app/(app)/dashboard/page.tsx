@@ -105,7 +105,8 @@ export default async function DashboardPage() {
       {/* Today's schedule — a single, full-width strip. Upcoming meetings live on the Calendar. */}
       <ScheduleColumn title="Today's Schedule" items={overview.todaySchedule} empty="Nothing scheduled today." />
 
-      {/* Office Summary */}
+      {/* Office Summary — also the home for oversight links that left the sidebar
+          (V6.1.3): Staff workload and General Tasks live here and in ⌘K. */}
       <div className="flex flex-wrap items-center gap-x-6 gap-y-1 rounded-lg border bg-card px-4 py-3 text-sm">
         <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Office Summary</span>
         <Link href="/projects?status=active" className="hover:underline">
@@ -117,6 +118,10 @@ export default async function DashboardPage() {
         <Link href="/archive" className="hover:underline">
           <span className="font-semibold tabular-nums">{overview.counts.inactive}</span> Archive
         </Link>
+        <span className="ml-auto flex items-center gap-4">
+          <Link href="/staff" className="font-medium hover:underline">Staff workload →</Link>
+          <Link href="/tasks" className="font-medium hover:underline">General Tasks →</Link>
+        </span>
       </div>
     </div>
   );

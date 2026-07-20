@@ -46,7 +46,7 @@ export function TaskRow({ task }: { task: TaskWithProject }) {
       <div className="min-w-0">
         <div className="truncate text-sm font-medium">{task.name}</div>
         <div className="truncate text-xs text-muted-foreground">
-          {task.project ? `${task.project.project_number} · ${task.project.name}` : '—'}
+          {task.project ? `${task.project.project_number} · ${task.project.name}` : 'General task'}
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-2">
@@ -79,7 +79,7 @@ export function DueItemRow({ item }: { item: DueItem }) {
       <div className="min-w-0">
         <div className="truncate text-sm font-medium">{item.name}</div>
         <div className="truncate text-xs text-muted-foreground">
-          {item.project ? `${item.project.project_number} · ${item.project.name}` : '—'}
+          {item.project ? `${item.project.project_number} · ${item.project.name}` : item.kind === 'task' ? 'General task' : '—'}
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-2">
@@ -107,7 +107,7 @@ export function CompletedTaskRow({ task }: { task: CompletedTaskItem }) {
         <div className="min-w-0">
           <div className="truncate text-sm font-medium">{task.name}</div>
           <div className="truncate text-xs text-muted-foreground">
-            {task.project ? `${task.project.project_number} · ${task.project.name}` : '—'}
+            {task.project ? `${task.project.project_number} · ${task.project.name}` : 'General task'}
             {by ? ` · ${by}` : ''}
           </div>
         </div>

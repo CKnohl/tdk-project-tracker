@@ -68,7 +68,7 @@ export function ReviewQueue({ items }: { items: ReviewQueueItem[] }) {
               >
                 <div className="truncate text-sm font-medium">{t.name}</div>
                 <div className="truncate text-xs text-muted-foreground">
-                  {t.project ? `${t.project.project_number} · ${t.project.name}` : '—'}
+                  {t.project ? `${t.project.project_number} · ${t.project.name}` : 'General task'}
                   {t.submitter ? ` · ${t.submitter}` : ''}
                   {t.review_requested_at ? ` · ${formatDate(t.review_requested_at)}` : ''}
                 </div>

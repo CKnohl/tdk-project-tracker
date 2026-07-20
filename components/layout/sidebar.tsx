@@ -19,8 +19,10 @@ export function SidebarNav({
   // assignments, which are already notifications). Shared 15s poll with the bell.
   const { data } = useBadgeData();
   const myWorkBadge = (data?.unread ?? 0) + (data?.reviews ?? 0);
-  // Role-gated nav (Operations Center minRank 30) + the Settings → Operations switch.
-  const items = visibleNavItems(rankOf(role), operationsVisible);
+  // Role-gated nav (Operations Center minRank 30) + the Settings → Operations
+  // switch. Off-rail destinations (inSidebar: false) stay reachable via ⌘K,
+  // Settings cards, and in-app links — the rail shows only the daily surfaces.
+  const items = visibleNavItems(rankOf(role), operationsVisible).filter((i) => i.inSidebar !== false);
 
   return (
     <nav className={cn('flex flex-col gap-1 py-4', collapsed ? 'items-center px-2' : 'px-3')}>
@@ -45,7 +47,8 @@ export function SidebarNav({
             <Icon className="h-4 w-4 shrink-0" />
             {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
             {!collapsed && badge > 0 && (
-              <span className="ml-auto rounded-full bg-destructive px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-destructive-foreground">
+              // Fixed equal width/height → a perfect circle (never a pill/ellipse).
+              <span className="ml-auto flex h-[18px] w-[18px] items-center justify-center rounded-full bg-destructive text-[9px] font-semibold tabular-nums leading-none text-destructive-foreground">
                 {formatBadgeCount(badge)}
               </span>
             )}

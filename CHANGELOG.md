@@ -5,6 +5,27 @@ per-sprint `docs/HANDOFF_V*.md` files going forward — those stay as history; n
 changes are recorded here. Reserve a dedicated design doc only for large
 architectural changes.
 
+## V6.1.3 — Sidebar pared to the daily surfaces
+
+- **The sidebar is now: Dashboard · (Operations Center when enabled) · My Work ·
+  Active Projects · Calendar · Settings.** Everything else remains a real page but
+  moved off the rail — all of it still reachable via ⌘K:
+  - **Activity** → PM/Admin only now (page gated; engineers redirect to the
+    dashboard) with a Settings card as its home.
+  - **Archive** → Settings card, visible to everyone.
+  - **General Tasks** → linked from the dashboard's Office Summary and My Work;
+    assignees land there from their task links.
+  - **Staff** → linked from the dashboard's Office Summary ("Staff workload →"),
+    the place a manager already starts the day; project team members and ⌘K also
+    deep-link to staff pages. Page stays visible to everyone.
+- **My Work badge is a perfect circle** (fixed 18px, never a pill).
+- **General tasks label correctly** in task rows: "General task" instead of a bare
+  "—" where a project number would be (My Work/dashboard rows, review queue, staff
+  page tasks).
+- Mechanism: `NavItem.inSidebar` — the sidebar filters it, ⌘K still lists every
+  destination the viewer's role (and the Operations switch) allows. No routes
+  removed, no data changes.
+
 ## V6.1.2 — Users & Roles merged into Staff Management (one roster)
 
 - **Staff Management is now the single people surface.** Each staff row shows the
