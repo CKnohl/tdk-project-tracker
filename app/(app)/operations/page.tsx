@@ -7,6 +7,8 @@ import { canManageProjects } from '@/lib/permissions';
 import { getIntakeDocuments } from '@/lib/data/intake';
 import { getProposalsByDocument, getAllProposals } from '@/lib/data/proposals';
 import { getProjectDirectory } from '@/lib/data/reference';
+import { getInterpretationEnabled } from '@/lib/data/settings';
+import { interpretKeyConfigured } from '@/lib/intake-interpret';
 
 export const metadata = { title: 'Operations Center' };
 
@@ -22,21 +24,34 @@ export default async function OperationsCenterPage() {
   const user = await getCurrentUser();
   if (!user || !canManageProjects(user.role)) redirect('/dashboard');
 
-  const [documents, projects, proposalsByDoc, allProposals] = await Promise.all([
+  const [documents, projects, proposalsByDoc, allProposals, interpretationOn] = await Promise.all([
     getIntakeDocuments(),
     getProjectDirectory(),
     getProposalsByDocument(),
     getAllProposals(),
+    getInterpretationEnabled(),
   ]);
+  // Interpretation surfaces only when the admin setting is ON and the server key exists.
+  const interpretAvailable = interpretationOn && interpretKeyConfigured();
 
   return (
     <div className="space-y-5">
       <ScrollRestoration storageKey="tdk-operations-scroll" />
       <PageHeader
         title="Operations Center"
-        description="Office intake — process documents that arrive before they're on a project. Interpret a document into proposals, then review and apply them; a project only changes when you approve."
+        description={
+          interpretAvailable
+            ? "Office intake — process documents that arrive before they're on a project. Interpret a document into proposals, then review and apply them; a project only changes when you approve."
+            : "Office intake — process documents that arrive before they're on a project, then file them to the right project. Nothing changes a project until you file it."
+        }
       />
-      <OperationsCenter documents={documents} projects={projects} proposalsByDoc={proposalsByDoc} allProposals={allProposals} />
+      <OperationsCenter
+        documents={documents}
+        projects={projects}
+        proposalsByDoc={proposalsByDoc}
+        allProposals={allProposals}
+        interpretAvailable={interpretAvailable}
+      />
     </div>
   );
 }

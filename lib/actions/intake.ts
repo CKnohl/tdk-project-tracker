@@ -16,29 +16,48 @@ import { requireManager, fail, errMessage, type ActionResult } from './_helpers'
 
 const BUCKET = 'intake';
 
-export async function createIntakeDocument(formData: FormData): Promise<ActionResult> {
+// Direct-to-storage upload in two steps (mirrors lib/actions/files.ts): the browser
+// uploads with a signed ticket; only metadata passes through the action. The old
+// pass-the-file-through-the-action path hit the ~1 MB server-action body limit.
+
+/** Step 1 — mint a signed upload ticket for the intake bucket. */
+export async function createIntakeUpload(fileName: string): Promise<ActionResult<{ path: string; token: string }>> {
+  try {
+    await requireManager();
+    const supabase = await createClient();
+    const safeName = fileName.replace(/[^\w.\-]+/g, '_');
+    const path = `${randomUUID()}-${safeName}`;
+    const { data, error } = await supabase.storage.from(BUCKET).createSignedUploadUrl(path);
+    if (error || !data) return fail(error?.message ?? 'Could not start the upload.');
+    return { ok: true, data: { path: data.path, token: data.token } };
+  } catch (e) {
+    return fail(errMessage(e));
+  }
+}
+
+/** Step 2 — after the browser uploads, verify the object exists and record the intake row. */
+export async function registerIntakeDocument(
+  path: string,
+  meta: { file_name: string; mime_type: string | null; size_bytes: number },
+): Promise<ActionResult> {
   try {
     const user = await requireManager();
-    const file = formData.get('file');
-    if (!(file instanceof File) || file.size === 0) return fail('No file selected.');
-    if (file.size > 50 * 1024 * 1024) return fail('File exceeds the 50 MB limit.');
-
+    if (path.includes('/')) return fail('Invalid upload path.');
     const supabase = await createClient();
-    const safeName = file.name.replace(/[^\w.\-]+/g, '_');
-    const path = `${randomUUID()}-${safeName}`;
 
-    const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, file, {
-      contentType: file.type || 'application/octet-stream',
-      upsert: false,
-    });
-    if (upErr) return fail(upErr.message);
+    const { data: found, error: listErr } = await supabase.storage
+      .from(BUCKET)
+      .list('', { search: path, limit: 1 });
+    if (listErr) return fail(listErr.message);
+    const object = found?.find((o) => o.name === path);
+    if (!object) return fail('Upload not found in storage — try again.');
 
     const { error } = await supabase.from('intake_documents').insert({
       source_type: 'upload',
       storage_path: path,
-      file_name: file.name,
-      mime_type: file.type || null,
-      size_bytes: file.size,
+      file_name: meta.file_name,
+      mime_type: meta.mime_type,
+      size_bytes: (object.metadata?.size as number | undefined) ?? meta.size_bytes,
       status: 'received',
       uploaded_by: user.id,
     });

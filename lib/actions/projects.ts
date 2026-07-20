@@ -284,3 +284,24 @@ export async function setProjectStaff(projectId: string, staffIds: string[]): Pr
     return fail(errMessage(e));
   }
 }
+
+/**
+ * Targeted manager assignment — the one-click resolution for a project left
+ * without an active manager (offboarding). Notifies via the existing project
+ * assignment path.
+ */
+export async function setProjectManager(projectId: string, staffId: string): Promise<ActionResult> {
+  try {
+    const user = await requireManager();
+    const supabase = await createClient();
+    const { error } = await supabase.from('projects').update({ project_manager_id: staffId }).eq('id', projectId);
+    if (error) return fail(error.message);
+    await notifyProjectAssigned({ projectId, staffIds: [staffId], actorId: user.id });
+    revalidatePath(`/projects/${projectId}`);
+    revalidatePath('/projects');
+    revalidatePath('/dashboard');
+    return { ok: true, id: projectId };
+  } catch (e) {
+    return fail(errMessage(e));
+  }
+}

@@ -57,7 +57,10 @@ export default async function StaffDetailPage({ params }: { params: Promise<{ id
           <StaffAvatar name={member.full_name} initials={member.initials} className="h-12 w-12" />
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">{member.full_name}</h1>
-            <p className="text-sm text-muted-foreground">{member.email ?? 'No email on file'}</p>
+            <p className="text-sm text-muted-foreground">
+              {member.email ?? 'No email on file'}
+              {member.phone ? <> · <a href={`tel:${member.phone}`} className="hover:underline">{member.phone}</a></> : null}
+            </p>
           </div>
         </div>
         {showSelfReport && (

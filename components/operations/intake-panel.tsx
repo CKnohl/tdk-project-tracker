@@ -18,8 +18,9 @@ import {
 import { EmptyState } from '@/components/shared/empty-state';
 import { ProposalsList } from '@/components/operations/proposals-list';
 import {
-  createIntakeDocument, createIntakeSignedUrl, markIntakeFiled, setIntakeStatus, bulkSetIntakeStatus,
+  createIntakeUpload, registerIntakeDocument, createIntakeSignedUrl, markIntakeFiled, setIntakeStatus, bulkSetIntakeStatus,
 } from '@/lib/actions/intake';
+import { createClient } from '@/lib/supabase/client';
 import { interpretIntakeDocument } from '@/lib/actions/proposals';
 import { createNote } from '@/lib/actions/notes';
 import { createTask } from '@/lib/actions/tasks';
@@ -58,11 +59,12 @@ function iconFor(mime: string | null) {
 }
 
 export function IntakePanel({
-  documents, projects, proposalsByDoc,
+  documents, projects, proposalsByDoc, interpretAvailable,
 }: {
   documents: IntakeDocumentItem[];
   projects: ProjectOption[];
   proposalsByDoc: Record<string, IntakeProposalItem[]>;
+  interpretAvailable: boolean;
 }) {
   const router = useRouter();
   const fileInput = React.useRef<HTMLInputElement>(null);
@@ -138,13 +140,26 @@ export function IntakePanel({
   }
 
   // ── Uploads ─────────────────────────────────────────────────────────────────
+  // Direct-to-storage per file: ticket → browser uploads straight to the bucket →
+  // register the intake row. Files never pass through a server action (~1 MB cap).
+  async function uploadOne(f: File): Promise<boolean> {
+    if (f.size > 50 * 1024 * 1024) return false;
+    const ticket = await createIntakeUpload(f.name);
+    if (!ticket.ok) return false;
+    const { error } = await createClient()
+      .storage.from('intake')
+      .uploadToSignedUrl(ticket.data.path, ticket.data.token, f, { contentType: f.type || 'application/octet-stream' });
+    if (error) return false;
+    const res = await registerIntakeDocument(ticket.data.path, {
+      file_name: f.name, mime_type: f.type || null, size_bytes: f.size,
+    });
+    return res.ok;
+  }
   function uploadFiles(files: File[]) {
     if (files.length === 0) return;
     startUpload(async () => {
-      const results = await Promise.allSettled(
-        files.map((f) => { const fd = new FormData(); fd.append('file', f); return createIntakeDocument(fd); }),
-      );
-      const ok = results.filter((r) => r.status === 'fulfilled' && r.value.ok).length;
+      const results = await Promise.allSettled(files.map(uploadOne));
+      const ok = results.filter((r) => r.status === 'fulfilled' && r.value).length;
       if (ok) toast.success(`Uploaded ${ok} document${ok === 1 ? '' : 's'}`);
       if (ok < files.length) toast.error(`${files.length - ok} failed to upload`);
       router.refresh();
@@ -178,7 +193,7 @@ export function IntakePanel({
     } else if (d.reason === 'no_text') {
       setPasting(doc); setPasteText('');
     } else {
-      toast('Interpretation is turned off pending data-governance sign-off.');
+      toast('Interpretation is turned off (Settings → Operations).');
     }
   }
 
@@ -222,7 +237,7 @@ export function IntakePanel({
       if (e.key === 'ArrowDown' || e.key === 'j') { e.preventDefault(); setSelectedId(list[Math.min(idx + 1, list.length - 1)].id); }
       else if (e.key === 'ArrowUp' || e.key === 'k') { e.preventDefault(); setSelectedId(list[Math.max(idx - 1, 0)].id); }
       else if (doc && (e.key === 'Enter' || e.key === 'f')) { e.preventDefault(); openFiling(doc); }
-      else if (doc && e.key === 'i') { e.preventDefault(); void interpret(doc); }
+      else if (doc && e.key === 'i' && interpretAvailable) { e.preventDefault(); void interpret(doc); }
       else if (doc && e.key === 'e' && doc.status !== 'archived') { e.preventDefault(); void setStatus(doc, 'archived', 'Archived'); }
       else if (doc && e.key === 'o') { e.preventDefault(); void view(doc); }
       else if (doc && e.key === 'x') { e.preventDefault(); toggleDoc(doc.id); }
@@ -331,9 +346,11 @@ export function IntakePanel({
                     <Button variant="ghost" size="icon" className="h-8 w-8" title="View (o)" aria-label="View document" onClick={() => view(doc)}>
                       <ExternalLink className="h-4 w-4" />
                     </Button>
-                    <Button variant="outline" size="sm" disabled={busyInterpret} onClick={() => interpret(doc)} title="Interpret (i)">
-                      <FileSearch className="h-4 w-4" /> {busyInterpret ? 'Interpreting…' : count > 0 ? 'Re-interpret' : 'Interpret'}
-                    </Button>
+                    {interpretAvailable && (
+                      <Button variant="outline" size="sm" disabled={busyInterpret} onClick={() => interpret(doc)} title="Interpret (i)">
+                        <FileSearch className="h-4 w-4" /> {busyInterpret ? 'Interpreting…' : count > 0 ? 'Re-interpret' : 'Interpret'}
+                      </Button>
+                    )}
                     <Button variant="outline" size="sm" onClick={() => openFiling(doc)}>
                       <FolderInput className="h-4 w-4" /> {doc.status === 'filed' ? 'File again' : 'File'}
                     </Button>
@@ -360,7 +377,7 @@ export function IntakePanel({
       {list.length > 0 && (
         <p className="px-1 text-[11px] text-muted-foreground">
           <kbd className="rounded border bg-muted px-1">↑</kbd><kbd className="rounded border bg-muted px-1">↓</kbd> move ·
-          <kbd className="ml-1 rounded border bg-muted px-1">i</kbd> interpret ·
+          {interpretAvailable && <> <kbd className="ml-1 rounded border bg-muted px-1">i</kbd> interpret ·</>}
           <kbd className="ml-1 rounded border bg-muted px-1">f</kbd> file ·
           <kbd className="ml-1 rounded border bg-muted px-1">o</kbd> open ·
           <kbd className="ml-1 rounded border bg-muted px-1">x</kbd> select ·

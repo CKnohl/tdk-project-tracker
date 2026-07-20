@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Loader2, Users } from 'lucide-react';
@@ -57,15 +58,24 @@ export function StaffTab({
         <EmptyState icon={Users} title="No team assigned" />
       ) : (
         <div className="grid gap-2 sm:grid-cols-2">
-          {members.map((m) => (
-            <div key={m.staff?.id} className="flex items-center gap-3 rounded-lg border p-2.5">
-              <StaffAvatar name={m.staff?.full_name} initials={m.staff?.initials} />
-              <div>
-                <div className="text-sm font-medium">{m.staff?.full_name}</div>
-                {m.role_on_project && <div className="text-xs text-muted-foreground">{m.role_on_project}</div>}
-              </div>
-            </div>
-          ))}
+          {/* Each member links to their staff page (workload + assignments), same as the
+              main Staff directory — one click from a project to what someone is working on.
+              Deactivated staff are hidden (their membership row remains for history). */}
+          {members.map((m) =>
+            m.staff && m.staff.is_active !== false ? (
+              <Link
+                key={m.staff.id}
+                href={`/staff/${m.staff.id}`}
+                className="flex items-center gap-3 rounded-lg border p-2.5 transition-colors hover:bg-accent/40"
+              >
+                <StaffAvatar name={m.staff.full_name} initials={m.staff.initials} />
+                <div>
+                  <div className="text-sm font-medium">{m.staff.full_name}</div>
+                  {m.role_on_project && <div className="text-xs text-muted-foreground">{m.role_on_project}</div>}
+                </div>
+              </Link>
+            ) : null,
+          )}
         </div>
       )}
     </div>

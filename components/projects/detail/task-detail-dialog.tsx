@@ -1,12 +1,17 @@
 'use client';
 
-import { Pencil } from 'lucide-react';
+import * as React from 'react';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
+import { Pencil, MessageSquarePlus } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import { MetaBadge } from '@/components/shared/meta-badge';
 import { PriorityBadge } from '@/components/shared/priority-badge';
 import { StaffAvatar } from '@/components/shared/staff-avatar';
 import { TASK_STATUS, TASK_RECURRENCE } from '@/lib/constants';
+import { commentOnTask } from '@/lib/actions/reviews';
 import { describeDue, formatRelative, humanize, cn } from '@/lib/utils';
 import type { TaskWithStaff, ActivityItem, ReviewItem } from '@/lib/types';
 
@@ -42,9 +47,28 @@ export function TaskDetailDialog({
   onClose: () => void;
   onEdit: (task: TaskWithStaff) => void;
 }) {
+  const router = useRouter();
+  const [update, setUpdate] = React.useState('');
+  const [saving, setSaving] = React.useState(false);
+
   if (!task) return null;
   const due = describeDue(task.due_date);
-  const members = task.assignees.map((a) => a.staff).filter(Boolean) as { id: string; full_name: string; initials: string | null }[];
+
+  // Anyone who can edit may append a written update to the task's timeline —
+  // progress, partial outcomes, context (the same store completion notes use).
+  async function addUpdate() {
+    if (!task || saving) return;
+    setSaving(true);
+    const res = await commentOnTask(task.id, task.project_id, update);
+    setSaving(false);
+    if (!res.ok) return toast.error(res.error);
+    toast.success('Update added');
+    setUpdate('');
+    router.refresh();
+  }
+  const members = task.assignees
+    .map((a) => a.staff)
+    .filter((s): s is NonNullable<typeof s> => !!s && s.is_active !== false);
   const history = activity
     .filter((a) => a.entity_type === 'task' && a.entity_id === task.id)
     .slice(0, 12);
@@ -88,7 +112,7 @@ export function TaskDetailDialog({
             {task.description ? <p className="whitespace-pre-wrap">{task.description}</p> : <span className="text-muted-foreground">—</span>}
           </Row>
           {reviews.length > 0 && (
-            <Row label="Review History">
+            <Row label="Updates & Review">
               <ul className="space-y-2">
                 {reviews.map((r) => (
                   <li key={r.id} className="text-xs">
@@ -98,15 +122,39 @@ export function TaskDetailDialog({
                         r.action === 'approved' && 'text-emerald-600 dark:text-emerald-400',
                         r.action === 'rejected' && 'text-red-600 dark:text-red-400',
                         r.action === 'submitted' && 'text-violet-600 dark:text-violet-400',
+                        r.action === 'commented' && 'text-sky-600 dark:text-sky-400',
                       )}
                     >
-                      {r.action === 'submitted' ? 'sent for review' : r.action === 'approved' ? 'approved' : 'requested changes'}
+                      {r.action === 'submitted'
+                        ? 'sent for review'
+                        : r.action === 'approved'
+                          ? 'approved'
+                          : r.action === 'rejected'
+                            ? 'requested changes'
+                            : 'added an update'}
                     </span>
                     <span className="text-muted-foreground"> · {formatRelative(r.created_at)}</span>
                     {r.comment && <p className="mt-0.5 whitespace-pre-wrap text-foreground/80">“{r.comment}”</p>}
                   </li>
                 ))}
               </ul>
+            </Row>
+          )}
+          {canEdit && (
+            <Row label="Add Update">
+              <div className="space-y-1.5">
+                <Textarea
+                  value={update}
+                  onChange={(e) => setUpdate(e.target.value)}
+                  rows={2}
+                  placeholder="Progress, partial outcomes, context…"
+                />
+                <div className="flex justify-end">
+                  <Button variant="outline" size="sm" disabled={!update.trim() || saving} onClick={addUpdate}>
+                    <MessageSquarePlus className="h-4 w-4" /> {saving ? 'Adding…' : 'Add update'}
+                  </Button>
+                </div>
+              </div>
             </Row>
           )}
           <Row label="History">

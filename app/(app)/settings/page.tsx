@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { UserCog, Users, Building2, IdCard, ChevronRight } from 'lucide-react';
+import { UserCog, Users, Building2, IdCard, SlidersHorizontal, ChevronRight } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { PageHeader } from '@/components/shared/page-header';
 import { getCurrentUser } from '@/lib/auth';
@@ -17,6 +17,7 @@ export default async function SettingsPage() {
     { href: '/settings/staff', icon: IdCard, title: 'Staff Management', desc: 'Add, edit, deactivate, transfer ownership', show: manager },
     { href: '/settings/users', icon: Users, title: 'Users & Roles', desc: 'Manage access and roles', show: admin },
     { href: '/settings/companies', icon: Building2, title: 'Companies', desc: 'TDK & M&P configuration', show: admin },
+    { href: '/settings/operations', icon: SlidersHorizontal, title: 'Operations', desc: 'Document interpretation and intake options', show: admin },
   ].filter((i) => i.show);
 
   return (

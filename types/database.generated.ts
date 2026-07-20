@@ -1308,6 +1308,7 @@ export type Database = {
           initials: string | null
           is_active: boolean
           last_name: string | null
+          phone: string | null
           updated_at: string
           user_id: string | null
         }
@@ -1321,6 +1322,7 @@ export type Database = {
           initials?: string | null
           is_active?: boolean
           last_name?: string | null
+          phone?: string | null
           updated_at?: string
           user_id?: string | null
         }
@@ -1334,6 +1336,7 @@ export type Database = {
           initials?: string | null
           is_active?: boolean
           last_name?: string | null
+          phone?: string | null
           updated_at?: string
           user_id?: string | null
         }
@@ -1965,6 +1968,7 @@ export type Database = {
         | "presentation"
         | "town_meeting"
         | "inspection"
+        | "appointment"
       contact_role:
         | "client"
         | "attorney"
@@ -2636,6 +2640,7 @@ export const Constants = {
         "presentation",
         "town_meeting",
         "inspection",
+        "appointment",
       ],
       contact_role: [
         "client",

@@ -29,7 +29,7 @@ export const contactRoleEnum = z.enum([
 ]);
 export const calendarEventTypeEnum = z.enum([
   'deadline', 'meeting', 'submittal', 'site_visit', 'follow_up', 'milestone', 'custom',
-  'presentation', 'town_meeting', 'inspection',
+  'presentation', 'town_meeting', 'inspection', 'appointment',
 ]);
 
 const optionalDate = z.string().date().optional().or(z.literal('').transform(() => undefined));
@@ -120,6 +120,7 @@ export const staffSchema = z.object({
   email: z.string().email().optional().or(z.literal('').transform(() => undefined)),
   initials: z.string().trim().max(4, 'Max 4 characters').optional().or(z.literal('').transform(() => undefined)),
   company_id: z.coerce.number().int().positive().optional(),
+  phone: z.string().trim().max(40, 'Too long').optional().or(z.literal('').transform(() => undefined)),
 });
 export type StaffInput = z.infer<typeof staffSchema>;
 

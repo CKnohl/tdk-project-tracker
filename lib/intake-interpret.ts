@@ -4,9 +4,11 @@
 // SERVER ONLY. This produces PROPOSALS ONLY — it never writes to any tracker table.
 //
 // GATED OFF BY DEFAULT (charter SEC-2, data-governance): no external call is made unless
-// BOTH OPENAI_API_KEY is set AND INTAKE_INTERPRET_ENABLED === 'true'. Until the firm signs
-// off on what document data may leave the building, interpretation stays disabled and the
-// UI simply says so. Best-effort: returns null on any failure so nothing breaks.
+// BOTH the OPENAI_API_KEY server env var is set AND an admin has turned interpretation ON
+// in Settings → Operations (the `interpretation_enabled` global setting — see
+// lib/data/settings.ts). Callers check the setting; this module checks the key. When either
+// is missing, the Operations Center shows no interpretation UI at all.
+// Best-effort: returns null on any failure so nothing breaks.
 
 const OPENAI_ENDPOINT = 'https://api.openai.com/v1/chat/completions';
 const DEFAULT_MODEL = 'gpt-4o-mini';
@@ -28,9 +30,9 @@ export interface ExtractedProposal {
   uncertainties: string | null;
 }
 
-/** Whether live interpretation may run (key present AND explicitly enabled). */
-export function interpretEnabled(): boolean {
-  return !!process.env.OPENAI_API_KEY && process.env.INTAKE_INTERPRET_ENABLED === 'true';
+/** Whether the server-side service key is configured (the admin setting is checked separately). */
+export function interpretKeyConfigured(): boolean {
+  return !!process.env.OPENAI_API_KEY;
 }
 
 const ALLOWED = new Set<ExtractedType>(['task', 'general_task', 'note', 'submittal', 'calendar_event']);
@@ -69,7 +71,7 @@ export async function extractProposals(
   text: string,
   projects: { project_number: string; name: string }[],
 ): Promise<ExtractedProposal[] | null> {
-  if (!interpretEnabled()) return null;
+  if (!interpretKeyConfigured()) return null;
   const apiKey = process.env.OPENAI_API_KEY!;
   const model = process.env.OPENAI_MODEL ?? DEFAULT_MODEL;
 

@@ -4,7 +4,8 @@ import { createHash } from 'crypto';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { getProjectDirectory } from '@/lib/data/reference';
-import { extractProposals, interpretEnabled, type ExtractedProposal } from '@/lib/intake-interpret';
+import { getInterpretationEnabled } from '@/lib/data/settings';
+import { extractProposals, interpretKeyConfigured, type ExtractedProposal } from '@/lib/intake-interpret';
 import { requireManager, fail, errMessage, type ActionResult } from './_helpers';
 import type { Json, ProjectMatchVerdict } from '@/types/database.types';
 
@@ -47,6 +48,12 @@ export async function interpretIntakeDocument(
     const user = await requireManager();
     const supabase = await createClient();
 
+    // Both gates first (server-side defense — the UI hides Interpret when off):
+    // the admin's Settings toggle AND the server-side service key.
+    if (!(await getInterpretationEnabled()) || !interpretKeyConfigured()) {
+      return { ok: true, data: { interpreted: false, reason: 'disabled' } };
+    }
+
     const { data: doc } = await supabase
       .from('intake_documents')
       .select('id, storage_path, mime_type, file_name')
@@ -60,7 +67,6 @@ export async function interpretIntakeDocument(
       if (blob) text = (await blob.text()).trim();
     }
     if (!text) return { ok: true, data: { interpreted: false, reason: 'no_text' } };
-    if (!interpretEnabled()) return { ok: true, data: { interpreted: false, reason: 'disabled' } };
 
     const projects = await getProjectDirectory();
     const extracted = await extractProposals(text, projects.map((p) => ({ project_number: p.project_number, name: p.name })));

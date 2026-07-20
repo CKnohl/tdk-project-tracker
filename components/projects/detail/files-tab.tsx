@@ -7,7 +7,8 @@ import { Loader2, Upload, Download, Trash2, FileIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/shared/empty-state';
 import { formatDateTime } from '@/lib/utils';
-import { uploadProjectFile, deleteProjectFile, createFileDownloadUrl } from '@/lib/actions/files';
+import { createProjectFileUpload, registerProjectFile, deleteProjectFile, createFileDownloadUrl } from '@/lib/actions/files';
+import { createClient } from '@/lib/supabase/client';
 import type { FileItem } from '@/lib/types';
 
 function humanSize(bytes: number | null) {
@@ -32,18 +33,34 @@ export function FilesTab({
   const inputRef = React.useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = React.useState(false);
 
+  // Direct-to-storage: ticket → browser uploads straight to the bucket → register the
+  // row. The file never passes through a server action (which caps bodies at ~1 MB).
   async function onUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    const fd = new FormData();
-    fd.set('file', file);
-    const res = await uploadProjectFile(projectId, fd);
-    setUploading(false);
     if (inputRef.current) inputRef.current.value = '';
-    if (!res.ok) return toast.error(res.error);
-    toast.success('File uploaded');
-    router.refresh();
+    if (!file) return;
+    if (file.size > 50 * 1024 * 1024) return toast.error('File exceeds the 50 MB limit.');
+    setUploading(true);
+    try {
+      const ticket = await createProjectFileUpload(projectId, file.name);
+      if (!ticket.ok) return toast.error(ticket.error);
+      const { error: upErr } = await createClient()
+        .storage.from('project-files')
+        .uploadToSignedUrl(ticket.data.path, ticket.data.token, file, {
+          contentType: file.type || 'application/octet-stream',
+        });
+      if (upErr) return toast.error(upErr.message);
+      const res = await registerProjectFile(projectId, ticket.data.path, {
+        file_name: file.name,
+        mime_type: file.type || null,
+        size_bytes: file.size,
+      });
+      if (!res.ok) return toast.error(res.error);
+      toast.success('File uploaded');
+      router.refresh();
+    } finally {
+      setUploading(false);
+    }
   }
 
   async function download(f: FileItem) {

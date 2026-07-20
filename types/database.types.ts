@@ -39,7 +39,7 @@ export type ContactRole = Enums<'contact_role'>;
 // ---------------------------------------------------------------------------
 // CHECK-constraint unions (hand-maintained — mirror supabase/migrations).
 // ---------------------------------------------------------------------------
-export type TaskReviewAction = 'submitted' | 'approved' | 'rejected';
+export type TaskReviewAction = 'submitted' | 'approved' | 'rejected' | 'commented';
 export type IntakeSourceType = 'upload' | 'email' | 'meeting' | 'scan' | 'other';
 export type IntakeStatus = 'received' | 'in_progress' | 'filed' | 'archived';
 export type ProposalType = 'task' | 'general_task' | 'note' | 'submittal' | 'calendar_event';

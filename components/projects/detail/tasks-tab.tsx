@@ -14,6 +14,7 @@ import { StaffStack } from '@/components/shared/staff-avatar';
 import { EmptyState } from '@/components/shared/empty-state';
 import { TaskForm } from '../task-form';
 import { TaskDetailDialog } from './task-detail-dialog';
+import { CompletionNoteDialog, type CompletedTaskRef } from '@/components/tasks/completion-note-dialog';
 import { TASK_STATUS } from '@/lib/constants';
 import { describeDue, cn } from '@/lib/utils';
 import { setTaskStatus, deleteTask } from '@/lib/actions/tasks';
@@ -55,11 +56,14 @@ export function TasksTab({
   const [rejecting, setRejecting] = React.useState<TaskWithStaff | null>(null);
   const [rejectComment, setRejectComment] = React.useState('');
   const [busy, setBusy] = React.useState(false);
+  const [completedTask, setCompletedTask] = React.useState<CompletedTaskRef | null>(null);
 
   async function quickStatus(task: TaskWithStaff, status: TaskStatus) {
     const res = await setTaskStatus(task.id, projectId, status);
-    if (!res.ok) toast.error(res.error);
-    else router.refresh();
+    if (!res.ok) return toast.error(res.error);
+    // Completing offers an optional context note (skippable) — see CompletionNoteDialog.
+    if (status === 'completed') setCompletedTask({ id: task.id, name: task.name, project_id: projectId });
+    router.refresh();
   }
 
   async function submitForReview(task: TaskWithStaff) {
@@ -119,6 +123,38 @@ export function TasksTab({
         </div>
       )}
 
+      {/* Open tasks held by deactivated staff surface here for reassignment —
+          assignments are never auto-removed (history stays; reactivation restores). */}
+      {canEdit && (() => {
+        const orphaned = tasks.filter(
+          (t) =>
+            t.status !== 'completed' &&
+            t.status !== 'cancelled' &&
+            t.assignees.some((a) => a.staff && a.staff.is_active === false),
+        );
+        if (orphaned.length === 0) return null;
+        return (
+          <div className="rounded-md border border-amber-300 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950/40">
+            <p className="mb-1.5 text-xs font-semibold text-amber-900 dark:text-amber-200">
+              {orphaned.length} open task{orphaned.length === 1 ? '' : 's'} assigned to deactivated staff — reassign:
+            </p>
+            <div className="space-y-1">
+              {orphaned.map((t) => (
+                <div key={t.id} className="flex items-center justify-between gap-2 text-sm">
+                  <span className="min-w-0 truncate">
+                    {t.name}
+                    <span className="text-xs text-muted-foreground">
+                      {' '}· was {t.assignees.filter((a) => a.staff && a.staff.is_active === false).map((a) => a.staff!.full_name).join(', ')}
+                    </span>
+                  </span>
+                  <Button variant="outline" size="sm" className="h-7 shrink-0" onClick={() => setEditing(t)}>Reassign</Button>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
       {tasks.length === 0 ? (
         <EmptyState title="No tasks yet" description={canEdit ? 'Add the first task to get started.' : undefined} />
       ) : (
@@ -128,7 +164,9 @@ export function TasksTab({
             const done = task.status === 'completed';
             const inReview = task.status === 'in_review';
             const active = !done && !inReview && task.status !== 'cancelled';
-            const members = task.assignees.map((a) => a.staff).filter(Boolean) as { id: string; full_name: string; initials: string | null }[];
+            const members = task.assignees
+              .map((a) => a.staff)
+              .filter((s): s is NonNullable<typeof s> => !!s && s.is_active !== false);
             return (
               <div key={task.id} className={cn('flex items-center justify-between gap-3 p-3', done && 'bg-muted/30')}>
                 <button type="button" onClick={() => setViewing(task)} className="min-w-0 flex-1 rounded text-left transition-opacity hover:opacity-70">
@@ -261,6 +299,8 @@ export function TasksTab({
         onClose={() => setViewing(null)}
         onEdit={(t) => setEditing(t)}
       />
+
+      <CompletionNoteDialog task={completedTask} onClose={() => setCompletedTask(null)} />
     </div>
   );
 }

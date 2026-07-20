@@ -20,6 +20,7 @@ interface StaffVM {
   initials: string | null;
   email: string | null;
   company_id: number | null;
+  phone?: string | null;
 }
 
 export function StaffForm({
@@ -39,6 +40,7 @@ export function StaffForm({
     initials: staff?.initials ?? '',
     email: staff?.email ?? '',
     company_id: staff?.company_id ? String(staff.company_id) : NONE,
+    phone: staff?.phone ?? '',
   });
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -50,6 +52,7 @@ export function StaffForm({
       initials: form.initials || undefined,
       email: form.email || undefined,
       company_id: form.company_id === NONE ? undefined : Number(form.company_id),
+      phone: form.phone || undefined,
     };
     const parsed = staffSchema.safeParse(input);
     if (!parsed.success) return setError(parsed.error.issues[0]?.message ?? 'Invalid input');
@@ -81,9 +84,14 @@ export function StaffForm({
           </Select>
         </Field>
       </div>
-      <Field label="Email">
-        <Input type="email" value={form.email} onChange={(e) => set('email', e.target.value)} placeholder="jane@tdkengineering.com" />
-      </Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Email">
+          <Input type="email" value={form.email} onChange={(e) => set('email', e.target.value)} placeholder="jane@tdkengineering.com" />
+        </Field>
+        <Field label="Phone">
+          <Input type="tel" value={form.phone} onChange={(e) => set('phone', e.target.value)} placeholder="(315) 555-0100" />
+        </Field>
+      </div>
       <div className="flex justify-end">
         <Button type="submit" disabled={pending}>
           {pending && <Loader2 className="h-4 w-4 animate-spin" />} {staff ? 'Save' : 'Add staff'}

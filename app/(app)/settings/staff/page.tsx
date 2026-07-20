@@ -15,7 +15,7 @@ export default async function StaffSettingsPage() {
 
   const supabase = await createClient();
   const [{ data: staff }, companies] = await Promise.all([
-    supabase.from('staff').select('id, full_name, initials, email, company_id, is_active, user_id').order('full_name'),
+    supabase.from('staff').select('id, full_name, initials, email, phone, company_id, is_active, user_id').order('full_name'),
     getCompanies(),
   ]);
 

@@ -9,7 +9,7 @@ import { ScrollRestoration } from '@/components/shared/scroll-restoration';
 export const metadata = { title: 'General Tasks' };
 
 export default async function GeneralTasksPage() {
-  const [user, { tasks, activity }, staff] = await Promise.all([
+  const [user, { tasks, activity, reviews }, staff] = await Promise.all([
     getCurrentUser(),
     getGeneralTasks(),
     getStaffDirectory(),
@@ -22,7 +22,7 @@ export default async function GeneralTasksPage() {
         title="General Tasks"
         description="Standalone office tasks — filing, standards, admin work — that aren't tied to a project."
       />
-      <GeneralTasksView tasks={tasks} activity={activity} staff={staff} canEdit={canEdit(user?.role)} />
+      <GeneralTasksView tasks={tasks} activity={activity} staff={staff} canEdit={canEdit(user?.role)} reviews={reviews} />
     </div>
   );
 }

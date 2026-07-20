@@ -13,12 +13,13 @@ import { StaffStack } from '@/components/shared/staff-avatar';
 import { EmptyState } from '@/components/shared/empty-state';
 import { GeneralTaskForm } from './general-task-form';
 import { TaskDetailDialog } from '@/components/projects/detail/task-detail-dialog';
+import { CompletionNoteDialog, type CompletedTaskRef } from '@/components/tasks/completion-note-dialog';
 import { TASK_STATUS } from '@/lib/constants';
 import { describeDue, cn } from '@/lib/utils';
 import { setGeneralTaskStatus, deleteGeneralTask } from '@/lib/actions/general-tasks';
 import { celebrate } from '@/lib/confetti';
 import type { StaffOption } from '@/lib/data/reference';
-import type { TaskWithStaff, ActivityItem } from '@/lib/types';
+import type { TaskWithStaff, ActivityItem, ReviewItem } from '@/lib/types';
 import type { TaskStatus } from '@/types/database.types';
 
 const dueTone: Record<string, string> = {
@@ -34,21 +35,26 @@ export function GeneralTasksView({
   activity,
   staff,
   canEdit,
+  reviews = {},
 }: {
   tasks: TaskWithStaff[];
   activity: ActivityItem[];
   staff: StaffOption[];
   canEdit: boolean;
+  reviews?: Record<string, ReviewItem[]>;
 }) {
   const router = useRouter();
   const [adding, setAdding] = React.useState(false);
   const [editing, setEditing] = React.useState<TaskWithStaff | null>(null);
   const [viewing, setViewing] = React.useState<TaskWithStaff | null>(null);
+  const [completedTask, setCompletedTask] = React.useState<CompletedTaskRef | null>(null);
+  const [showArchive, setShowArchive] = React.useState(false);
 
   async function quickStatus(task: TaskWithStaff, status: TaskStatus) {
     const res = await setGeneralTaskStatus(task.id, status);
-    if (!res.ok) toast.error(res.error);
-    else router.refresh();
+    if (!res.ok) return toast.error(res.error);
+    if (status === 'completed') setCompletedTask({ id: task.id, name: task.name, project_id: null });
+    router.refresh();
   }
 
   async function complete(task: TaskWithStaff) {
@@ -56,6 +62,8 @@ export function GeneralTasksView({
     if (!res.ok) return toast.error(res.error);
     celebrate();
     toast.success('Task completed');
+    // Optional context note (skippable) — the full picture isn't always yes/no.
+    setCompletedTask({ id: task.id, name: task.name, project_id: null });
     router.refresh();
   }
 
@@ -82,15 +90,20 @@ export function GeneralTasksView({
         </div>
       )}
 
-      {tasks.length === 0 ? (
-        <EmptyState title="No office tasks yet" description={canEdit ? 'Add a standalone task that isn’t tied to a project.' : undefined} />
-      ) : (
-        <div className="divide-y rounded-lg border">
-          {tasks.map((task) => {
-            const due = describeDue(task.due_date);
-            const done = task.status === 'completed';
-            const members = task.assignees.map((a) => a.staff).filter(Boolean) as { id: string; full_name: string; initials: string | null }[];
-            return (
+      {(() => {
+        // Archive layer — finished work drops out of the working list into a
+        // collapsed section instead of cluttering the day-to-day view.
+        const active = tasks.filter((t) => t.status !== 'completed' && t.status !== 'cancelled');
+        const archived = tasks.filter((t) => t.status === 'completed' || t.status === 'cancelled');
+
+        const renderRow = (task: TaskWithStaff) => {
+          const due = describeDue(task.due_date);
+          const done = task.status === 'completed';
+          // Deactivated staff drop out of the assigned display (history keeps their name).
+          const members = task.assignees
+            .map((a) => a.staff)
+            .filter((s): s is NonNullable<typeof s> => !!s && s.is_active !== false);
+          return (
               <div key={task.id} className={cn('flex items-center justify-between gap-3 p-3', done && 'bg-muted/30')}>
                 <button type="button" onClick={() => setViewing(task)} className="min-w-0 flex-1 rounded text-left transition-opacity hover:opacity-70">
                   <div className="flex items-center gap-2">
@@ -142,10 +155,34 @@ export function GeneralTasksView({
                   )}
                 </div>
               </div>
-            );
-          })}
-        </div>
-      )}
+          );
+        };
+
+        if (tasks.length === 0) {
+          return <EmptyState title="No office tasks yet" description={canEdit ? 'Add a standalone task that isn’t tied to a project.' : undefined} />;
+        }
+        return (
+          <>
+            {active.length === 0 ? (
+              <p className="rounded-lg border py-8 text-center text-sm text-muted-foreground">Nothing open — everything is in the archive below.</p>
+            ) : (
+              <div className="divide-y rounded-lg border">{active.map(renderRow)}</div>
+            )}
+            {archived.length > 0 && (
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => setShowArchive((s) => !s)}
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+                >
+                  {showArchive ? 'Hide' : 'Show'} archive ({archived.length} completed / cancelled)
+                </button>
+                {showArchive && <div className="divide-y rounded-lg border">{archived.map(renderRow)}</div>}
+              </div>
+            )}
+          </>
+        );
+      })()}
 
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
         <DialogContent>
@@ -157,11 +194,13 @@ export function GeneralTasksView({
       <TaskDetailDialog
         task={viewing}
         activity={activity}
-        reviews={[]}
+        reviews={viewing ? reviews[viewing.id] ?? [] : []}
         canEdit={canEdit}
         onClose={() => setViewing(null)}
         onEdit={(t) => setEditing(t)}
       />
+
+      <CompletionNoteDialog task={completedTask} onClose={() => setCompletedTask(null)} />
     </div>
   );
 }

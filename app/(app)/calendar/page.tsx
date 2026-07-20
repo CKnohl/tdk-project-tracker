@@ -38,7 +38,7 @@ export default async function CalendarPage() {
           {/* The grid is the single source of truth — it reads v_calendar_feed
               (tasks, submittals, follow-ups, milestones AND calendar events). The
               view is not hard-coded: CalendarView remembers the user's last choice. */}
-          <CalendarView defaultView="month" />
+          <CalendarView defaultView="month" projects={projects ?? []} canEditEvents={editor} />
         </CardContent>
       </Card>
       <Card>

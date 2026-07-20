@@ -1,8 +1,9 @@
 import { startOfDay, endOfDay } from 'date-fns';
 import { createClient } from '@/lib/supabase/server';
 import { getDueItems, type DueItem } from '@/lib/data/due-items';
+import { suggestProjectLead } from '@/lib/data/staff';
 import { computeSchedule, type ScheduleSubmittal, type ScheduleTask } from '@/lib/schedule';
-import type { ProjectListItem, CompletedTaskItem } from '@/lib/types';
+import type { ProjectListItem, CompletedTaskItem, StaffRef } from '@/lib/types';
 import type { CalendarFeedRow, FollowUpNeededRow, ProjectPhaseRow, ProjectStatus, WorkflowState, InactiveReason, TaskStatus, TaskPriority } from '@/types/database.types';
 
 const PROJECT_SELECT =
@@ -209,4 +210,40 @@ export async function getOfficeOverview(): Promise<OfficeOverview> {
     needsAttention: needsC.count ?? 0,
     todaySchedule: todayRes.data ?? [],
   };
+}
+
+/**
+ * Active/on-hold projects with no ACTIVE manager (none assigned, or the assigned
+ * manager was deactivated). Feeds the admin/PM dashboard alert box, which only
+ * appears when this list is non-empty. Each entry carries a SUGGESTED new
+ * manager (active staff with the most open tasks on the project) that a human
+ * confirms with one click.
+ */
+export interface LeaderlessProject {
+  id: string;
+  project_number: string;
+  name: string;
+  former_manager: string | null; // deactivated manager name, null if none was set
+  suggested: StaffRef | null;
+}
+
+export async function getLeaderlessProjects(): Promise<LeaderlessProject[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from('projects')
+    .select('id, project_number, name, manager:staff!projects_project_manager_id_fkey(id, full_name, is_active)')
+    .in('status', ['active', 'on_hold'])
+    .order('project_number')
+    .returns<{ id: string; project_number: string; name: string; manager: { id: string; full_name: string; is_active: boolean } | null }[]>();
+
+  const leaderless = (data ?? []).filter((p) => !p.manager || !p.manager.is_active);
+  return Promise.all(
+    leaderless.map(async (p) => ({
+      id: p.id,
+      project_number: p.project_number,
+      name: p.name,
+      former_manager: p.manager && !p.manager.is_active ? p.manager.full_name : null,
+      suggested: await suggestProjectLead(supabase, p.id, p.manager?.id),
+    })),
+  );
 }

@@ -147,9 +147,10 @@ export function MyWorkWorkspace({
     ],
   }[folder];
 
-  const rail: { key: Folder; label: string; icon: typeof ListChecks; count: number }[] = [
+  const rail: { key: Folder; label: string; icon: typeof ListChecks; count: number; urgent?: boolean }[] = [
     { key: 'todo', label: 'To Do', icon: ListChecks, count: data.tasks.length },
-    { key: 'inbox', label: 'Inbox', icon: Inbox, count: unread },
+    // Inbox count = UNREAD notifications → red, matching the bell and sidebar badges.
+    { key: 'inbox', label: 'Inbox', icon: Inbox, count: unread, urgent: true },
     { key: 'reviews', label: 'Review', icon: ClipboardCheck, count: reviewQueue.length },
     { key: 'schedule', label: 'Schedule', icon: CalendarClock, count: deadlines.length },
     { key: 'projects', label: 'Projects', icon: FolderKanban, count: data.projects.length },
@@ -223,7 +224,14 @@ export function MyWorkWorkspace({
                   <Icon className="h-4 w-4 shrink-0" />
                   <span className="md:flex-1 md:text-left">{it.label}</span>
                   {it.count > 0 && (
-                    <span className={cn('rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums', active ? 'bg-background text-foreground' : 'bg-muted text-muted-foreground')}>
+                    <span
+                      className={cn(
+                        'rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums',
+                        it.urgent
+                          ? 'bg-destructive text-destructive-foreground'
+                          : active ? 'bg-background text-foreground' : 'bg-muted text-muted-foreground',
+                      )}
+                    >
                       {formatBadgeCount(it.count)}
                     </span>
                   )}

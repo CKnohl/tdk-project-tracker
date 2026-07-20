@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { getCurrentUser } from '@/lib/auth';
+import { INTERPRETATION_SETTING_KEY } from '@/lib/data/settings';
 import { requireAdmin, fail, errMessage, type ActionResult } from './_helpers';
 import type { RoleKey } from '@/lib/permissions';
 
@@ -70,6 +71,41 @@ export async function setUserActive(userId: string, active: boolean): Promise<Ac
     if (error) return fail(error.message);
     revalidatePath('/settings/users');
     return { ok: true };
+  } catch (e) {
+    return fail(errMessage(e));
+  }
+}
+
+// Office-wide (scope='global') configuration writes. Admin-only at both the action
+// and RLS level. Select-then-write instead of upsert because the uniqueness on
+// (key) is a partial index (where scope='global'), which ON CONFLICT can't infer.
+async function setGlobalSetting(key: string, value: boolean): Promise<ActionResult> {
+  await requireAdmin();
+  const supabase = await createClient();
+  const { data: existing, error: readErr } = await supabase
+    .from('settings')
+    .select('id')
+    .eq('scope', 'global')
+    .eq('key', key)
+    .maybeSingle();
+  if (readErr) return fail(readErr.message);
+
+  const { error } = existing
+    ? await supabase.from('settings').update({ value, updated_at: new Date().toISOString() }).eq('id', existing.id)
+    : await supabase.from('settings').insert({ scope: 'global', key, value });
+  if (error) return fail(error.message);
+  return { ok: true };
+}
+
+/** Turn document interpretation on/off for the whole office (Settings → Operations). */
+export async function setInterpretationEnabled(enabled: boolean): Promise<ActionResult> {
+  try {
+    const res = await setGlobalSetting(INTERPRETATION_SETTING_KEY, enabled);
+    if (res.ok) {
+      revalidatePath('/settings/operations');
+      revalidatePath('/operations');
+    }
+    return res;
   } catch (e) {
     return fail(errMessage(e));
   }

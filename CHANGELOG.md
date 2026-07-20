@@ -5,6 +5,79 @@ per-sprint `docs/HANDOFF_V*.md` files going forward — those stay as history; n
 changes are recorded here. Reserve a dedicated design doc only for large
 architectural changes.
 
+## V6.1 — Operations gating, upload fix, workflow polish & staff offboarding
+
+A broad workflow sprint from the office's handwritten suggestions
+(`docs/NOTES_BACKLOG.md` transcribes every item with its status). No redesign; every
+change reuses existing systems.
+
+### Operations Center — interpretation is now a purchased, admin-gated option
+- The AI **Interpret** action and **Proposal Review** tab are **removed from view by
+  default**. The Operations Center is intake-and-filing only until an admin turns
+  interpretation on. **Intake documents and existing proposals are kept** — the review
+  tab still appears if any proposals already exist.
+- New **Settings → Operations** (admin only) with a **Document interpretation** switch,
+  stored as the `interpretation_enabled` global setting. Interpretation runs only when
+  the switch is on **and** a paid service key is configured server-side; the card says
+  which is missing. Runbook: `docs/INTERPRETATION_RUNBOOK.md`.
+- The retired `INTAKE_INTERPRET_ENABLED` env flag is replaced by the Settings switch;
+  `OPENAI_API_KEY` still gates the server call. No provider/model names in the UI.
+- **Reused:** the existing `settings` table (one config owner; admin-only RLS already
+  present), the existing interpret action/data-governance path. No new table.
+
+### Fix — slow / failing file uploads (project files AND intake)
+- Uploads now go **browser → storage directly** via a signed upload ticket
+  (`createSignedUploadUrl` → `uploadToSignedUrl`); only metadata crosses the server
+  action. Passing the file body through a server action hit the ~1 MB action-body
+  limit (4.5 MB hard cap on Vercel) and doubled the transfer — the cause of the hangs
+  and failures. Two-step `createProjectFileUpload`/`registerProjectFile` and
+  `createIntakeUpload`/`registerIntakeDocument`. 50 MB client guard retained.
+
+### Workflow polish (from the notes)
+- **Project team names link to the staff page.** **My Work Inbox badge is red** like the
+  bell. **Calendar events are tinted by category** (not all red) via a shared
+  `EVENT_TINTS` map. **Event form project picker is searchable** (shared `Combobox`).
+  **Clicking a hand-added calendar event opens its editor** in place; derived
+  task/submittal rows still open the project.
+- **Optional completion note** — marking a task complete offers a skippable context
+  note ("not every task is black-and-white"). **Assignee updates** — any editor can
+  append a written update to a task's timeline. Both reuse `task_reviews` as the task
+  timeline (new `commented` action) — no new table, no second notes system.
+- **General tasks archive** — completed/cancelled office tasks collapse into a
+  toggleable archive.
+
+### Staff offboarding (handwritten page 4, in full)
+- Deactivating a staff member opens an **offboarding checklist**: what they hold
+  (managed projects, leads, open tasks/submittals, pending reviews) with **Transfer &
+  deactivate** (atomic `transfer_staff_ownership`) or **Deactivate only**.
+- Deactivating a manager **alerts every admin/PM** per orphaned project and shows a
+  **dashboard alert box** listing leaderless active projects, each with a **suggested**
+  new manager (active teammate with the most open tasks) a human confirms with one
+  click — never automatic.
+- Deactivated staff are **hidden from assignment displays** while their **history stays
+  in their name**; a project's open tasks assigned to them get a **reassign** banner.
+  **Reactivating restores** their open assignments.
+- **Reused:** `setStaffActive`, `transferOwnership`, `reassignTasks`, `lib/notify.ts`
+  (new `notifyProjectNeedsManager`), the existing project-assignment action. No new
+  table; no new notification path.
+
+### Additive schema (from the notes) — apply on deploy
+- `0041_task_comments.sql` — `task_reviews.action` gains `commented` (task timeline).
+- `0042_appointment_event_type.sql` — `appointment` calendar event type.
+- `0043_staff_phone.sql` — `staff.phone` (staff form + profile click-to-call).
+
+### Deferred (documented in `docs/NOTES_BACKLOG.md`)
+Task time-of-day **reminders** (needs a sub-daily scheduler — its own failure domain),
+the **in/out office presence board** (a self-service presence subsystem needing new
+RLS + surface), and **Ajera timesheet** import (external integration, no API access
+today). Each has a written reason and design sketch.
+
+### Migrations & types
+Apply `0041`–`0043` via `supabase db push`, then `npm run types:gen`. All additive/
+idempotent; no existing data changes. The `appointment` enum value and `staff.phone`
+column are pre-added to `types/database.generated.ts` so the app builds before apply;
+`types:gen` reproduces them exactly. `npm run typecheck` and `npm run build` pass.
+
 ## Fix — restore app types after first real `types:gen` (types architecture)
 
 Applying migrations 0017–0040 and running `npm run types:gen` for the first time overwrote

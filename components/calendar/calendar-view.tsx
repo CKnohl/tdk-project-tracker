@@ -18,11 +18,15 @@ import {
   startOfWeek,
 } from 'date-fns';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { EventForm } from '@/components/calendar/event-form';
+import { createClient } from '@/lib/supabase/client';
 import { cn, humanize } from '@/lib/utils';
-import { useCalendarFeed, EVENT_COLORS } from '@/lib/queries/calendar';
-import type { CalendarFeedRow } from '@/types/database.types';
+import { useCalendarFeed, EVENT_COLORS, EVENT_TINTS } from '@/lib/queries/calendar';
+import type { CalendarFeedRow, CalendarEventRow } from '@/types/database.types';
 
 type View = 'month' | 'week' | 'agenda';
 const iso = (d: Date) => format(d, 'yyyy-MM-dd');
@@ -40,15 +44,29 @@ function rangeFor(view: View, cursor: Date) {
   return { start: cursor, end: addDays(cursor, 30) };
 }
 
-function EventChip({ ev }: { ev: CalendarFeedRow }) {
-  return (
-    <Link
-      href={ev.project_id ? `/projects/${ev.project_id}` : '/tasks'}
-      className="flex items-center gap-1 truncate rounded px-1 py-0.5 text-[11px] hover:bg-accent"
-      title={ev.title}
-    >
+function EventChip({ ev, onOpen }: { ev: CalendarFeedRow; onOpen?: (ev: CalendarFeedRow) => void }) {
+  const inner = (
+    <>
       <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', EVENT_COLORS[ev.event_type] ?? 'bg-slate-500')} />
       <span className="truncate">{ev.title}</span>
+    </>
+  );
+  const chipCls = cn(
+    'flex w-full items-center gap-1 truncate rounded px-1 py-0.5 text-left text-[11px] hover:opacity-80',
+    EVENT_TINTS[ev.event_type] ?? 'hover:bg-accent',
+  );
+  // Hand-added calendar events open their editor; derived rows (task/submittal
+  // deadlines) navigate to the project where they are edited.
+  if (onOpen) {
+    return (
+      <button type="button" onClick={() => onOpen(ev)} className={chipCls} title={ev.title}>
+        {inner}
+      </button>
+    );
+  }
+  return (
+    <Link href={ev.project_id ? `/projects/${ev.project_id}` : '/tasks'} className={chipCls} title={ev.title}>
+      {inner}
     </Link>
   );
 }
@@ -56,12 +74,33 @@ function EventChip({ ev }: { ev: CalendarFeedRow }) {
 export function CalendarView({
   defaultView = 'month',
   compact = false,
+  projects,
+  canEditEvents = false,
 }: {
   defaultView?: View;
   compact?: boolean;
+  /** When provided (with canEditEvents), clicking a calendar event opens its editor. */
+  projects?: { id: string; project_number: string; name: string }[];
+  canEditEvents?: boolean;
 }) {
   const [view, setView] = React.useState<View>(defaultView);
   const [cursor, setCursor] = React.useState(new Date());
+  const [editing, setEditing] = React.useState<CalendarEventRow | null>(null);
+
+  // Clicking a hand-added event fetches its full row and opens the edit dialog
+  // instead of navigating away to the project (the feed row lacks description etc.).
+  const editable = canEditEvents && !!projects;
+  const openEvent = React.useCallback(async (ev: CalendarFeedRow) => {
+    if (!ev.entity_id) return;
+    const { data, error } = await createClient()
+      .from('calendar_events')
+      .select('*')
+      .eq('id', ev.entity_id)
+      .maybeSingle();
+    if (error || !data) return toast.error('Could not open that event.');
+    setEditing(data);
+  }, []);
+  const chipOpen = (ev: CalendarFeedRow) => (editable && ev.source === 'event' ? openEvent : undefined);
 
   // Remember the user's last view across visits (don't hard-code a view). SSR
   // renders defaultView; the client restores the saved choice on mount.
@@ -162,7 +201,7 @@ export function CalendarView({
                 </div>
                 <div className="mt-0.5 space-y-0.5">
                   {dayEvents.slice(0, compact ? 2 : 4).map((ev) => (
-                    <EventChip key={ev.feed_id} ev={ev} />
+                    <EventChip key={ev.feed_id} ev={ev} onOpen={chipOpen(ev)} />
                   ))}
                   {dayEvents.length > (compact ? 2 : 4) && (
                     <div className="px-1 text-[10px] text-muted-foreground">
@@ -191,19 +230,24 @@ export function CalendarView({
                   <p className="pl-0.5 text-xs text-muted-foreground/70">Nothing scheduled</p>
                 ) : (
                   <div className="space-y-0.5">
-                    {dayEvents.map((ev) => (
-                      <Link
-                        key={ev.feed_id}
-                        href={ev.project_id ? `/projects/${ev.project_id}` : '/tasks'}
-                        className="flex items-center justify-between gap-2 rounded px-1 py-1 text-sm hover:bg-accent"
-                      >
-                        <span className="flex min-w-0 items-center gap-2">
-                          <span className={cn('h-2 w-2 shrink-0 rounded-full', EVENT_COLORS[ev.event_type] ?? 'bg-slate-500')} />
-                          <span className="truncate">{ev.title}</span>
-                        </span>
-                        <span className="shrink-0 text-xs text-muted-foreground">{ev.project_number ?? humanize(ev.source)}</span>
-                      </Link>
-                    ))}
+                    {dayEvents.map((ev) => {
+                      const open = chipOpen(ev);
+                      const row = (
+                        <>
+                          <span className="flex min-w-0 items-center gap-2">
+                            <span className={cn('h-2 w-2 shrink-0 rounded-full', EVENT_COLORS[ev.event_type] ?? 'bg-slate-500')} />
+                            <span className="truncate">{ev.title}</span>
+                          </span>
+                          <span className="shrink-0 text-xs text-muted-foreground">{ev.project_number ?? humanize(ev.source)}</span>
+                        </>
+                      );
+                      const rowCls = 'flex w-full items-center justify-between gap-2 rounded px-1 py-1 text-left text-sm hover:bg-accent';
+                      return open ? (
+                        <button key={ev.feed_id} type="button" onClick={() => open(ev)} className={rowCls}>{row}</button>
+                      ) : (
+                        <Link key={ev.feed_id} href={ev.project_id ? `/projects/${ev.project_id}` : '/tasks'} className={rowCls}>{row}</Link>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -218,32 +262,50 @@ export function CalendarView({
           {events.length === 0 && !isLoading && (
             <p className="py-8 text-center text-sm text-muted-foreground">No upcoming events.</p>
           )}
-          {events.map((ev) => (
-            <div key={ev.feed_id} className="flex items-center justify-between gap-3 py-2.5">
-              <div className="flex min-w-0 items-center gap-2">
-                <span className={cn('h-2 w-2 shrink-0 rounded-full', EVENT_COLORS[ev.event_type] ?? 'bg-slate-500')} />
-                <div className="min-w-0">
-                  <Link
-                    href={ev.project_id ? `/projects/${ev.project_id}` : '/tasks'}
-                    className="truncate text-sm font-medium hover:underline"
-                  >
-                    {ev.title}
-                  </Link>
-                  <div className="truncate text-xs text-muted-foreground">
-                    {ev.project_number ? `${ev.project_number} · ` : ''}
-                    {humanize(ev.source)}
+          {events.map((ev) => {
+            const open = chipOpen(ev);
+            return (
+              <div key={ev.feed_id} className="flex items-center justify-between gap-3 py-2.5">
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className={cn('h-2 w-2 shrink-0 rounded-full', EVENT_COLORS[ev.event_type] ?? 'bg-slate-500')} />
+                  <div className="min-w-0">
+                    {open ? (
+                      <button type="button" onClick={() => open(ev)} className="truncate text-left text-sm font-medium hover:underline">
+                        {ev.title}
+                      </button>
+                    ) : (
+                      <Link
+                        href={ev.project_id ? `/projects/${ev.project_id}` : '/tasks'}
+                        className="truncate text-sm font-medium hover:underline"
+                      >
+                        {ev.title}
+                      </Link>
+                    )}
+                    <div className="truncate text-xs text-muted-foreground">
+                      {ev.project_number ? `${ev.project_number} · ` : ''}
+                      {humanize(ev.source)}
+                    </div>
                   </div>
                 </div>
+                <span className="whitespace-nowrap text-xs text-muted-foreground">
+                  {ev.start_at ? format(parseISO(ev.start_at), 'EEE, MMM d') : ''}
+                </span>
               </div>
-              <span className="whitespace-nowrap text-xs text-muted-foreground">
-                {ev.start_at ? format(parseISO(ev.start_at), 'EEE, MMM d') : ''}
-              </span>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
       {isLoading && <p className="py-3 text-center text-xs text-muted-foreground">Loading…</p>}
+
+      {editable && (
+        <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Edit event</DialogTitle></DialogHeader>
+            {editing && <EventForm projects={projects!} event={editing} onSuccess={() => setEditing(null)} />}
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

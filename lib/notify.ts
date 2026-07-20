@@ -68,6 +68,19 @@ async function adminUserIds(admin: Admin): Promise<string[]> {
   return (data ?? []).map((u) => u.id);
 }
 
+/** Every active user at manager rank or above (rank >= 30) — admins + PMs. */
+async function managerUserIds(admin: Admin): Promise<string[]> {
+  const { data: roles } = await admin.from('roles').select('id, rank');
+  const managerRoleIds = (roles ?? []).filter((r) => r.rank >= 30).map((r) => r.id);
+  if (managerRoleIds.length === 0) return [];
+  const { data } = await admin
+    .from('users')
+    .select('id')
+    .in('role_id', managerRoleIds)
+    .eq('is_active', true);
+  return (data ?? []).map((u) => u.id);
+}
+
 async function projectStaffUserIds(admin: Admin, projectId: string): Promise<string[]> {
   const { data } = await admin.from('project_staff').select('staff_id').eq('project_id', projectId);
   return userIdsForStaff(admin, (data ?? []).map((r) => r.staff_id));
@@ -456,6 +469,37 @@ export async function notifyProjectTeam(opts: {
       entityType: 'project',
       entityId: opts.projectId,
       // No email mapping for these types -> in-app only.
+    });
+  } catch {
+    // best-effort
+  }
+}
+
+/**
+ * Project left without an active manager (offboarding) -> every admin + PM.
+ * Deliberately loud: assigning a new manager is an office-level decision that
+ * must not sit unnoticed. In-app only ('project_updated' has no email mapping).
+ */
+export async function notifyProjectNeedsManager(opts: {
+  projectId: string;
+  projectLabel: string; // "P-1234 · Riverside Site Plan"
+  suggestedName?: string | null;
+  actorId?: string | null;
+}): Promise<void> {
+  try {
+    const admin = createAdminClient();
+    const recipients = await managerUserIds(admin);
+    await dispatch(admin, {
+      type: 'project_updated',
+      recipientUserIds: recipients,
+      excludeUserIds: [opts.actorId],
+      title: 'Project needs a manager',
+      body: opts.suggestedName
+        ? `${opts.projectLabel} — suggested: ${opts.suggestedName} (most open tasks)`
+        : opts.projectLabel,
+      projectId: opts.projectId,
+      entityType: 'project',
+      entityId: opts.projectId,
     });
   } catch {
     // best-effort

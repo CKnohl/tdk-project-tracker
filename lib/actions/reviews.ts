@@ -118,6 +118,33 @@ export async function rejectTask(taskId: string, projectId: string, comment: str
   }
 }
 
+/**
+ * Append a written update to a task's timeline (task_reviews action 'commented').
+ * Used for optional completion notes and assignee progress updates — not every task
+ * outcome is black-and-white, and the context lands next to the review history.
+ * projectId is null for general (office) tasks.
+ */
+export async function commentOnTask(taskId: string, projectId: string | null, comment: string): Promise<ActionResult> {
+  try {
+    const user = await requireEditor();
+    const trimmed = (comment ?? '').trim();
+    if (trimmed.length < 3) return fail('Add a bit more detail to the note.');
+    const supabase = await createClient();
+    const { error } = await supabase
+      .from('task_reviews')
+      .insert({ task_id: taskId, action: 'commented', actor_id: user.staff_id, comment: trimmed });
+    if (error) return fail(error.message);
+    if (projectId) revalidateTask(projectId);
+    else {
+      revalidatePath('/tasks');
+      revalidatePath('/my-work');
+    }
+    return { ok: true };
+  } catch (e) {
+    return fail(errMessage(e));
+  }
+}
+
 /** Undo Complete: restore the snapshotted prior active status (completed_at cleared by trigger). */
 export async function undoComplete(taskId: string, projectId: string): Promise<ActionResult> {
   try {

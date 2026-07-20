@@ -13,20 +13,30 @@ import type { ProjectOption } from '@/lib/data/reference';
 // views over server-loaded data; neither introduces a write path.
 
 export function OperationsCenter({
-  documents, projects, proposalsByDoc, allProposals,
+  documents, projects, proposalsByDoc, allProposals, interpretAvailable,
 }: {
   documents: IntakeDocumentItem[];
   projects: ProjectOption[];
   proposalsByDoc: Record<string, IntakeProposalItem[]>;
   allProposals: IntakeProposalItem[];
+  interpretAvailable: boolean;
 }) {
   const [tab, setTab] = React.useState<'queue' | 'review'>('queue');
   const needsReview = allProposals.filter((p) => p.state === 'proposed' || p.state === 'edited').length;
 
+  // With interpretation off the Proposal Review tab only appears if proposals already
+  // exist (the data is kept) — otherwise the Operations Center is just the intake queue.
+  const showReview = interpretAvailable || allProposals.length > 0;
+  const tabs = showReview ? (['queue', 'review'] as const) : (['queue'] as const);
+
+  if (!showReview) {
+    return <IntakePanel documents={documents} projects={projects} proposalsByDoc={proposalsByDoc} interpretAvailable={interpretAvailable} />;
+  }
+
   return (
     <div className="space-y-4">
       <div role="tablist" aria-label="Operations Center views" className="flex gap-1 border-b">
-        {(['queue', 'review'] as const).map((t) => (
+        {tabs.map((t) => (
           <button
             key={t}
             role="tab"
@@ -44,7 +54,7 @@ export function OperationsCenter({
       </div>
 
       {tab === 'queue' ? (
-        <IntakePanel documents={documents} projects={projects} proposalsByDoc={proposalsByDoc} />
+        <IntakePanel documents={documents} projects={projects} proposalsByDoc={proposalsByDoc} interpretAvailable={interpretAvailable} />
       ) : (
         <ProposalsWorkspace proposals={allProposals} />
       )}

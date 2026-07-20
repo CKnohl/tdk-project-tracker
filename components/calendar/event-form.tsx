@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Combobox } from '@/components/shared/combobox';
 import { Field } from '@/components/shared/field';
 import { calendarEventSchema } from '@/lib/validators';
 import { createCalendarEvent, updateCalendarEvent } from '@/lib/actions/calendar';
@@ -16,6 +17,7 @@ import type { CalendarEventRow } from '@/types/database.types';
 const NONE = '__none__';
 const TYPES = [
   { value: 'meeting', label: 'Meeting' },
+  { value: 'appointment', label: 'Appointment' },
   { value: 'presentation', label: 'Presentation' },
   { value: 'town_meeting', label: 'Town Meeting' },
   { value: 'inspection', label: 'Inspection' },
@@ -92,13 +94,14 @@ export function EventForm({
           </Select>
         </Field>
         <Field label="Project">
-          <Select value={form.project_id} onValueChange={(v) => set('project_id', v)}>
-            <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value={NONE}>None</SelectItem>
-              {projects.map((p) => <SelectItem key={p.id} value={p.id}>{p.project_number} · {p.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          {/* Searchable — the office has 100+ projects; scrolling a plain select doesn't scale. */}
+          <Combobox
+            options={[{ value: NONE, label: 'None' }, ...projects.map((p) => ({ value: p.id, label: `${p.project_number} · ${p.name}` }))]}
+            value={form.project_id}
+            onChange={(v) => set('project_id', v)}
+            placeholder="None"
+            emptyText="No matching projects"
+          />
         </Field>
         <Field label="Start">
           <Input type="datetime-local" value={form.start_at} onChange={(e) => set('start_at', e.target.value)} />

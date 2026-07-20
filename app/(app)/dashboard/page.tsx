@@ -2,10 +2,12 @@ import Link from 'next/link';
 import { PageHeader } from '@/components/shared/page-header';
 import { Card } from '@/components/ui/card';
 import { FeedRow } from '@/components/dashboard/rows';
+import { LeaderlessAlert } from '@/components/dashboard/leaderless-alert';
 import { GenerateReportButton } from '@/components/reports/generate-report-button';
 import { getCurrentUser } from '@/lib/auth';
 import { canManageProjects } from '@/lib/permissions';
-import { getOfficeOverview, getScheduleHealth } from '@/lib/data/dashboard';
+import { getOfficeOverview, getScheduleHealth, getLeaderlessProjects } from '@/lib/data/dashboard';
+import { getStaffDirectory } from '@/lib/data/reference';
 import { cn } from '@/lib/utils';
 import type { CalendarFeedRow } from '@/types/database.types';
 
@@ -67,11 +69,19 @@ export default async function DashboardPage() {
   ]);
   const canReport = canManageProjects(user?.role);
 
+  // Leaderless-project alert (offboarding aftermath) — admin/PM only, and the
+  // queries only run for them. The box renders nothing when the list is empty.
+  const [leaderless, staffDir] = canReport
+    ? await Promise.all([getLeaderlessProjects(), getStaffDirectory()])
+    : [[], []];
+
   return (
     <div className="space-y-5">
       <PageHeader title="Dashboard" description="The office command center — what the company needs today.">
         {canReport && <GenerateReportButton />}
       </PageHeader>
+
+      {canReport && <LeaderlessAlert projects={leaderless} staff={staffDir} />}
 
       {/* Priority Focus */}
       <section>

@@ -25,6 +25,10 @@ export interface StaffRef {
   id: string;
   full_name: string;
   initials: string | null;
+  /** Present when the select includes it. Deactivated staff are filtered from
+      assignment displays (their history keeps their name); open work assigned to
+      them is surfaced for reassignment instead. */
+  is_active?: boolean;
 }
 
 export interface ProjectRef {

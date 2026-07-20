@@ -1,15 +1,47 @@
 import { endOfWeek, format } from 'date-fns';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
 import type {
+  Database,
   ProjectStatus,
   TaskPriority,
   TaskStatus,
   WorkflowState,
 } from '@/types/database.types';
-import type { SubmittalWithProject } from '@/lib/types';
+import type { StaffRef, SubmittalWithProject } from '@/lib/types';
 
 const iso = (d: Date) => format(d, 'yyyy-MM-dd');
 const OPEN_TASK = '(completed,cancelled)';
+
+/**
+ * The ACTIVE staff member with the most open tasks on a project — the natural
+ * candidate when a project is left without a manager. A SUGGESTION only: a human
+ * always confirms the assignment (leaderless-project alert / dashboard box).
+ */
+export async function suggestProjectLead(
+  supabase: SupabaseClient<Database>,
+  projectId: string,
+  excludeStaffId?: string | null,
+): Promise<StaffRef | null> {
+  const { data } = await supabase
+    .from('task_staff')
+    .select('staff:staff(id,full_name,initials,is_active), task:tasks!inner(project_id,status)')
+    .eq('task.project_id', projectId)
+    .not('task.status', 'in', OPEN_TASK)
+    .returns<{ staff: (StaffRef & { is_active: boolean }) | null; task: { project_id: string; status: TaskStatus } | null }[]>();
+
+  const counts = new Map<string, { staff: StaffRef; count: number }>();
+  for (const row of data ?? []) {
+    const s = row.staff;
+    if (!s || !s.is_active || s.id === excludeStaffId) continue;
+    const agg = counts.get(s.id) ?? { staff: { id: s.id, full_name: s.full_name, initials: s.initials }, count: 0 };
+    agg.count++;
+    counts.set(s.id, agg);
+  }
+  let best: { staff: StaffRef; count: number } | null = null;
+  for (const c of counts.values()) if (!best || c.count > best.count) best = c;
+  return best?.staff ?? null;
+}
 
 export interface StaffDashboardCard {
   id: string;
@@ -129,6 +161,7 @@ export interface StaffMember {
   full_name: string;
   initials: string | null;
   email: string | null;
+  phone: string | null;
   user_id: string | null;
 }
 
@@ -136,7 +169,7 @@ export async function getStaffMember(id: string): Promise<StaffMember | null> {
   const supabase = await createClient();
   const { data } = await supabase
     .from('staff')
-    .select('id, full_name, initials, email, user_id')
+    .select('id, full_name, initials, email, phone, user_id')
     .eq('id', id)
     .maybeSingle();
   return data;

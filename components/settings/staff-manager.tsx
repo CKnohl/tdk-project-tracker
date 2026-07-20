@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { StaffAvatar } from '@/components/shared/staff-avatar';
 import { Field } from '@/components/shared/field';
 import { StaffForm } from './staff-form';
+import { OffboardingDialog } from './offboarding-dialog';
 import { setStaffActive, transferOwnership } from '@/lib/actions/staff';
 import type { CompanyOption } from '@/lib/data/reference';
 
@@ -20,6 +21,7 @@ interface StaffVM {
   full_name: string;
   initials: string | null;
   email: string | null;
+  phone: string | null;
   company_id: number | null;
   is_active: boolean;
   user_id: string | null;
@@ -33,14 +35,22 @@ export function StaffManager({ staff, companies }: { staff: StaffVM[]; companies
   const [from, setFrom] = React.useState('');
   const [to, setTo] = React.useState('');
   const [pending, setPending] = React.useState(false);
+  const [offboarding, setOffboarding] = React.useState<StaffVM | null>(null);
 
   const companyName = (id: number | null) => companies.find((c) => c.id === id)?.name ?? '—';
   const active = staff.filter((s) => s.is_active);
 
   async function toggle(s: StaffVM, value: boolean) {
-    const res = await setStaffActive(s.id, value);
+    // Deactivation goes through the offboarding checklist (what happens to their
+    // projects/tasks?) instead of flipping silently. Reactivation is direct —
+    // it simply restores their open assignments.
+    if (!value) {
+      setOffboarding(s);
+      return;
+    }
+    const res = await setStaffActive(s.id, true);
     if (!res.ok) toast.error(res.error);
-    else { toast.success(value ? 'Reactivated' : 'Deactivated'); router.refresh(); }
+    else { toast.success('Reactivated — their open assignments are restored'); router.refresh(); }
   }
 
   async function runTransfer() {
@@ -139,6 +149,8 @@ export function StaffManager({ staff, companies }: { staff: StaffVM[]; companies
           {editing && <StaffForm companies={companies} staff={editing} onSuccess={() => setEditing(null)} />}
         </DialogContent>
       </Dialog>
+
+      <OffboardingDialog person={offboarding} activeStaff={active} onClose={() => setOffboarding(null)} />
     </div>
   );
 }

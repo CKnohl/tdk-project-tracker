@@ -169,13 +169,13 @@ export const getProjectDetail = cache(async (id: string): Promise<ProjectDetail 
   const [staff, tasks, submittals, contacts, notes, files, activity, stats, phases, leads] = await Promise.all([
     supabase
       .from('project_staff')
-      .select('role_on_project, staff:staff(id,full_name,initials)')
+      .select('role_on_project, staff:staff(id,full_name,initials,is_active)')
       .eq('project_id', id)
       .returns<ProjectStaffMember[]>(),
     supabase
       .from('tasks')
       .select(
-        'id,project_id,name,description,priority,status,start_date,due_date,completion_pct,notes,recurrence,created_by,completed_at,created_at,updated_at,assignees:task_staff(staff:staff(id,full_name,initials))',
+        'id,project_id,name,description,priority,status,start_date,due_date,completion_pct,notes,recurrence,created_by,completed_at,created_at,updated_at,assignees:task_staff(staff:staff(id,full_name,initials,is_active))',
       )
       .eq('project_id', id)
       .order('status', { ascending: true })
