@@ -63,11 +63,31 @@ export function formatRelative(value: string | Date | null | undefined) {
   return d ? formatDistanceToNow(d, { addSuffix: true }) : '—';
 }
 
+/** Today's date in the office timezone (America/New_York) as yyyy-MM-dd. */
+function officeToday(): string {
+  // en-CA formats as yyyy-MM-dd.
+  return new Intl.DateTimeFormat('en-CA', { timeZone: TZ }).format(new Date());
+}
+
 /** Human label for a due date with urgency hints. */
 export function describeDue(value: string | Date | null | undefined): {
   label: string;
   tone: 'overdue' | 'today' | 'soon' | 'normal' | 'none';
 } {
+  // Date-only values (yyyy-MM-dd due dates) are FLOATING calendar dates — compare and
+  // format them in the office timezone directly. Parsing them into a Date first lands on
+  // UTC midnight, which then shows a day earlier once rendered in Eastern time (the
+  // "Upcoming shows Jul 22 instead of Jul 23" bug).
+  if (typeof value === 'string' && DATE_ONLY.test(value)) {
+    const today = officeToday();
+    const [ty, tm, td] = today.split('-').map(Number);
+    const t = new Date(Date.UTC(ty, tm - 1, td + 1));
+    const tomorrow = `${t.getUTCFullYear()}-${String(t.getUTCMonth() + 1).padStart(2, '0')}-${String(t.getUTCDate()).padStart(2, '0')}`;
+    if (value === today) return { label: 'Due today', tone: 'today' };
+    if (value === tomorrow) return { label: 'Due tomorrow', tone: 'soon' };
+    if (value < today) return { label: `Overdue · ${formatDate(value)}`, tone: 'overdue' };
+    return { label: formatDate(value), tone: 'normal' };
+  }
   const d = toDate(value);
   if (!d) return { label: 'No due date', tone: 'none' };
   if (isToday(d)) return { label: 'Due today', tone: 'today' };

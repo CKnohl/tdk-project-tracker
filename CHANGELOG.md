@@ -5,6 +5,16 @@ per-sprint `docs/HANDOFF_V*.md` files going forward — those stay as history; n
 changes are recorded here. Reserve a dedicated design doc only for large
 architectural changes.
 
+## Fix — calendar / "Upcoming" off-by-one date
+
+Date-only due dates (`yyyy-MM-dd`) were being turned into a `Date` at midnight UTC and then
+rendered in Eastern time, showing the **day before** (e.g., a 7/23 due date appeared as 7/22).
+- **`describeDue()`** (`lib/utils.ts`) now treats date-only values as floating calendar dates
+  in the office timezone — fixes the project **Upcoming** widget, `TaskRow`, and `DueItemRow`.
+- **`0040_calendar_feed_date_fix.sql`** re-anchors the date-derived rows in `v_calendar_feed`
+  at noon UTC so the **/calendar** page and dashboard **Today's Schedule** show the correct day.
+  *(Apply via `supabase db push` and verify on the live calendar.)*
+
 ## V6 — Phase 1.3: Operations Center polish & hardening
 
 A friction-removal sprint before daily use — no new workflows, no OCR, no AI, no redesign.
