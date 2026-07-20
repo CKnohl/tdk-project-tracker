@@ -41,18 +41,24 @@ Installable PWA. Microsoft (Azure AD) sign-in; role-based access (Admin 40 / PM 
 - **No AI/confidence numbers in the UI** (confidence shows as a band).
 - Consolidation over addition; reuse before building.
 
-## 4. Pending migrations — MUST be applied on deploy (in order)
-`supabase db push` then `npm run types:gen`:
+## 4. Migrations — ✅ applied 2026-07-20 (0017–0040 via `supabase db push`)
+All pending migrations are applied and types were regenerated:
 - `0036` intake_documents + private `intake` bucket (RLS rank ≥ 30)
 - `0037` intake_proposals (the proposal store)
 - `0038` proposal apply columns (`applied_*`) + `approved` state
 - `0039` `archived` proposal state
-- `0040` **calendar-feed date fix** (see §7)
+- `0040` **calendar-feed date fix** (see §7 — still needs live verification)
 
 ⚠️ **The connected Supabase MCP points at the wrong org and cannot reach the TDK DB
 (`grpfdtomncopqslrwpem`).** Migrations are applied by a human via the Supabase CLI, **not**
-by the assistant. `types/database.types.ts` is **hand-authored to match migrations**; extend
-it in that file's style, then reconcile with `npm run types:gen` after applying.
+by the assistant.
+
+**Types architecture (since 2026-07-20):** `types/database.generated.ts` is the raw
+`npm run types:gen` output — never hand-edit it. `types/database.types.ts` is the
+hand-authored app-facing surface that *derives* its exports from the generated file,
+narrowing only CHECK-constraint text columns and view NOT-NULL columns the generator
+can't express. After applying a migration: `npm run types:gen`, then reconcile those
+narrowings in `database.types.ts` only if the migration changed a CHECK constraint or view.
 
 ## 5. Environment constraints (so you don't get surprised)
 - **Windows** dev box. **No Python / OCR / poppler / Ghostscript.** (PDF *rendering* isn't

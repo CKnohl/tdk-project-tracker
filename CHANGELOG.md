@@ -5,6 +5,32 @@ per-sprint `docs/HANDOFF_V*.md` files going forward — those stay as history; n
 changes are recorded here. Reserve a dedicated design doc only for large
 architectural changes.
 
+## Fix — restore app types after first real `types:gen` (types architecture)
+
+Applying migrations 0017–0040 and running `npm run types:gen` for the first time overwrote
+`types/database.types.ts` — until now hand-authored and the owner of the app's helper-type
+surface (`ProjectStatus`, `ProjectRow`, `CalendarFeedRow`, …) — producing ~540 type errors.
+The generated schema is kept as the source of truth; the app surface is restored as a
+derivation layer. **One owner per concern:**
+
+- **`types/database.generated.ts` (new)** — the raw `supabase gen` output. `npm run types:gen`
+  now writes here (package.json). Never hand-edited; safe to regenerate any time.
+- **`types/database.types.ts` (rewritten)** — the app-facing surface with the same exports as
+  before, so all ~50 importing files are unchanged. Every type is now *derived* from the
+  generated schema (`Tables<'projects'>`, `Enums<'project_status'>`), so schema changes flow
+  through regeneration automatically. Hand-narrowing remains only where the generator cannot
+  express the truth: text columns constrained by CHECK constraints (`task_reviews.action`,
+  intake document/proposal status unions) and view columns the view definition guarantees
+  non-null (`v_project_stats`, `v_calendar_feed`, `v_staff_workload`).
+- The three `v_project_stats` queries (`lib/data/projects.ts` ×2, `lib/data/my-work.ts`)
+  attach `.returns<ProjectStatsRow[]>()` — the data layer's existing idiom for typed results —
+  because generated view rows are all-nullable.
+
+No migration, no new tables, no runtime change (`.returns` is type-only). `npm run typecheck`
+and `npm run build` pass. **Do not hand-edit `types/database.generated.ts`; after future
+migrations run `npm run types:gen`, then reconcile only the CHECK-constraint unions / view
+narrowings in `database.types.ts` if the migration changed them.**
+
 ## Fix — calendar / "Upcoming" off-by-one date
 
 Date-only due dates (`yyyy-MM-dd`) were being turned into a `Date` at midnight UTC and then

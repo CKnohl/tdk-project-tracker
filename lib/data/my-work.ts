@@ -77,7 +77,8 @@ export async function getMyWork(staffId: string | null): Promise<MyWorkData> {
     const { data: stats } = await supabase
       .from('v_project_stats')
       .select('*')
-      .in('project_id', projRows.map((p) => p.id));
+      .in('project_id', projRows.map((p) => p.id))
+      .returns<ProjectStatsRow[]>();
     for (const s of stats ?? []) statsMap.set(s.project_id, s);
   }
 

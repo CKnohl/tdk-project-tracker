@@ -13,7 +13,7 @@ Work top to bottom. Nothing here is automated — each step needs your accounts/
 - [ ] **Critical — `0017_grants.sql` must be applied.** Without it the API roles (`anon`/`authenticated`/`service_role`) have no table privileges and every dashboard query returns Postgres `42501` (the "dashboard shows zeros" bug). Verify by querying as the app role, or just confirm `0017` is in `select * from supabase_migrations.schema_migrations`.
 - [ ] Confirm in the dashboard: 17 tables, 5 views, the `project-files` storage bucket, RLS enabled on every table.
 - [ ] Verify seed: `select count(*) from projects;` → **24**, `select count(*) from staff;` → **16**, `roles` → **4**, `companies` → **2**.
-- [ ] `npm run types:gen` to replace the hand-written `types/database.types.ts` with the generated one.
+- [ ] `npm run types:gen` to regenerate `types/database.generated.ts` (the raw schema types). Do **not** touch `types/database.types.ts` — it is the hand-authored app-facing surface that derives from the generated file; reconcile it only if a migration changed a CHECK constraint or view.
 
 ## 2b. Branding assets (v0.2)
 - [ ] Logo lives at `public/brand/tdk-logo.png` (used in sidebar, mobile nav, login). Favicon is `app/icon.png`. To swap, replace both files (keep `app/icon.png` square-ish for a clean favicon).

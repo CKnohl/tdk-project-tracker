@@ -80,7 +80,11 @@ export async function getProjects(filters: ProjectFilters = {}): Promise<Project
   const ids = data.map((p) => p.id);
   const statsMap = new Map<string, ProjectStatsRow>();
   if (ids.length) {
-    const { data: stats } = await supabase.from('v_project_stats').select('*').in('project_id', ids);
+    const { data: stats } = await supabase
+      .from('v_project_stats')
+      .select('*')
+      .in('project_id', ids)
+      .returns<ProjectStatsRow[]>();
     (stats ?? []).forEach((s) => statsMap.set(s.project_id, s));
   }
 
@@ -205,7 +209,7 @@ export const getProjectDetail = cache(async (id: string): Promise<ProjectDetail 
       .order('created_at', { ascending: false })
       .limit(50)
       .returns<ActivityItem[]>(),
-    supabase.from('v_project_stats').select('*').eq('project_id', id).maybeSingle(),
+    supabase.from('v_project_stats').select('*').eq('project_id', id).returns<ProjectStatsRow[]>().maybeSingle(),
     supabase
       .from('project_phases')
       .select('*')

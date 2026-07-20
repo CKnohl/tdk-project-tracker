@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "types:gen": "supabase gen types typescript --linked > types/database.types.ts",
+    "types:gen": "supabase gen types typescript --linked > types/database.generated.ts",
     "db:reset": "supabase db reset",
     "db:push": "supabase db push"
   },

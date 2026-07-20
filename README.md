@@ -86,5 +86,5 @@ Domain restriction is enforced three ways: the login UI, the `/auth/callback` ch
 | `npm run dev` | Local dev server |
 | `npm run build` / `start` | Production build / serve |
 | `npm run typecheck` | `tsc --noEmit` |
-| `npm run types:gen` | Regenerate `types/database.types.ts` |
+| `npm run types:gen` | Regenerate `types/database.generated.ts` (raw schema; `types/database.types.ts` derives the app-facing types from it) |
 | `node scripts/gen-icons.mjs` | Regenerate PWA PNG icons |
