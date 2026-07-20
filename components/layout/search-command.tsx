@@ -43,7 +43,7 @@ interface StaffHit {
  * actions, jump-to-page navigation, and staff lookup — so power users can drive
  * the whole app from the keyboard once there are hundreds of projects.
  */
-export function SearchCommand({ role }: { role?: RoleKey }) {
+export function SearchCommand({ role, operationsVisible }: { role?: RoleKey; operationsVisible?: boolean }) {
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const [q, setQ] = React.useState('');
@@ -106,8 +106,9 @@ export function SearchCommand({ role }: { role?: RoleKey }) {
     { key: 'new-task', group: 'Actions', label: 'New general task', sub: 'Create a task', icon: Plus, onSelect: () => navTo('/tasks') },
   ];
   // Role-gated: PM/Admin-only destinations (e.g. Operations Center) never appear in
-  // an engineer's command palette.
-  const navCmds: Command[] = visibleNavItems(rankOf(role)).map((n) => ({
+  // an engineer's command palette; the Operations Center also needs the admin's
+  // Settings → Operations switch to be on.
+  const navCmds: Command[] = visibleNavItems(rankOf(role), operationsVisible).map((n) => ({
     key: `nav-${n.href}`, group: 'Go to', label: n.label, icon: n.icon, onSelect: () => navTo(n.href),
   }));
   const projectCmds: Command[] = projects.map((p) => ({

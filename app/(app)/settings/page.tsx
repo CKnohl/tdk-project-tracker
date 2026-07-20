@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { UserCog, Users, Building2, IdCard, SlidersHorizontal, ChevronRight } from 'lucide-react';
+import { UserCog, Building2, IdCard, SlidersHorizontal, ChevronRight } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { PageHeader } from '@/components/shared/page-header';
 import { getCurrentUser } from '@/lib/auth';
@@ -14,10 +14,10 @@ export default async function SettingsPage() {
 
   const items = [
     { href: '/settings/profile', icon: UserCog, title: 'Profile', desc: 'Your name and preferences', show: true },
-    { href: '/settings/staff', icon: IdCard, title: 'Staff Management', desc: 'Add, edit, deactivate, transfer ownership', show: manager },
-    { href: '/settings/users', icon: Users, title: 'Users & Roles', desc: 'Manage access and roles', show: admin },
+    // V6.1.1: Users & Roles merged in here — one roster for people, sign-ins, roles.
+    { href: '/settings/staff', icon: IdCard, title: 'Staff Management', desc: 'Staff, sign-ins, roles, activation, ownership', show: manager },
     { href: '/settings/companies', icon: Building2, title: 'Companies', desc: 'TDK & M&P configuration', show: admin },
-    { href: '/settings/operations', icon: SlidersHorizontal, title: 'Operations', desc: 'Document interpretation and intake options', show: admin },
+    { href: '/settings/operations', icon: SlidersHorizontal, title: 'Operations', desc: 'Show/hide the Operations Center and document interpretation', show: admin },
   ].filter((i) => i.show);
 
   return (

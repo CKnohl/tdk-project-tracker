@@ -23,15 +23,19 @@ export const metadata = { title: 'Operations Center' };
 export default async function OperationsCenterPage() {
   const user = await getCurrentUser();
   if (!user || !canManageProjects(user.role)) redirect('/dashboard');
+  // The whole Operations Center is gated by the admin's Settings → Operations
+  // switch — when off, the surface is hidden entirely (nav, ⌘K, and this typed
+  // URL). Intake documents and proposals are kept behind it.
+  const interpretationOn = await getInterpretationEnabled();
+  if (!interpretationOn) redirect('/dashboard');
 
-  const [documents, projects, proposalsByDoc, allProposals, interpretationOn] = await Promise.all([
+  const [documents, projects, proposalsByDoc, allProposals] = await Promise.all([
     getIntakeDocuments(),
     getProjectDirectory(),
     getProposalsByDocument(),
     getAllProposals(),
-    getInterpretationEnabled(),
   ]);
-  // Interpretation surfaces only when the admin setting is ON and the server key exists.
+  // Interpretation additionally requires the server-side service key.
   const interpretAvailable = interpretationOn && interpretKeyConfigured();
 
   return (

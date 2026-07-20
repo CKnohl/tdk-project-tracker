@@ -13,8 +13,10 @@ import type { RoleKey } from '@/lib/permissions';
 
 export function Topbar({
   user,
+  operationsVisible,
 }: {
   user: { full_name: string | null; email: string; avatar_url: string | null; role: RoleKey };
+  operationsVisible?: boolean;
 }) {
   const [open, setOpen] = React.useState(false);
 
@@ -29,12 +31,12 @@ export function Topbar({
         <SheetContent side="left" className="w-64 p-0">
           <SheetTitle className="sr-only">Navigation</SheetTitle>
           <SidebarBrand />
-          <SidebarNav onNavigate={() => setOpen(false)} role={user.role} />
+          <SidebarNav onNavigate={() => setOpen(false)} role={user.role} operationsVisible={operationsVisible} />
         </SheetContent>
       </Sheet>
 
       <div className="flex flex-1 items-center">
-        <SearchCommand role={user.role} />
+        <SearchCommand role={user.role} operationsVisible={operationsVisible} />
       </div>
 
       <ThemeToggle />

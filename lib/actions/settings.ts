@@ -1,4 +1,4 @@
-'use server';
+﻿'use server';
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
@@ -56,7 +56,7 @@ export async function setUserRole(userId: string, roleKey: RoleKey): Promise<Act
     if (!role) return fail('Unknown role');
     const { error } = await supabase.from('users').update({ role_id: role.id }).eq('id', userId);
     if (error) return fail(error.message);
-    revalidatePath('/settings/users');
+    revalidatePath('/settings/staff');
     return { ok: true };
   } catch (e) {
     return fail(errMessage(e));
@@ -69,7 +69,7 @@ export async function setUserActive(userId: string, active: boolean): Promise<Ac
     const supabase = await createClient();
     const { error } = await supabase.from('users').update({ is_active: active }).eq('id', userId);
     if (error) return fail(error.message);
-    revalidatePath('/settings/users');
+    revalidatePath('/settings/staff');
     return { ok: true };
   } catch (e) {
     return fail(errMessage(e));
@@ -97,13 +97,18 @@ async function setGlobalSetting(key: string, value: boolean): Promise<ActionResu
   return { ok: true };
 }
 
-/** Turn document interpretation on/off for the whole office (Settings → Operations). */
+/**
+ * Turn the Operations Center + document interpretation on/off for the whole office
+ * (Settings → Operations). The switch controls whether the Operations Center is
+ * visible at all; interpretation additionally needs the server-side service key.
+ */
 export async function setInterpretationEnabled(enabled: boolean): Promise<ActionResult> {
   try {
     const res = await setGlobalSetting(INTERPRETATION_SETTING_KEY, enabled);
     if (res.ok) {
-      revalidatePath('/settings/operations');
-      revalidatePath('/operations');
+      // The (app) layout reads this setting to show/hide the Operations Center
+      // in the sidebar and ⌘K — revalidate the whole layout, not just two pages.
+      revalidatePath('/', 'layout');
     }
     return res;
   } catch (e) {
@@ -122,7 +127,7 @@ export async function linkUserStaff(userId: string, staffId: string | null): Pro
     if (staffId) {
       await supabase.from('staff').update({ user_id: userId }).eq('id', staffId);
     }
-    revalidatePath('/settings/users');
+    revalidatePath('/settings/staff');
     return { ok: true };
   } catch (e) {
     return fail(errMessage(e));

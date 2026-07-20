@@ -5,6 +5,36 @@ per-sprint `docs/HANDOFF_V*.md` files going forward — those stay as history; n
 changes are recorded here. Reserve a dedicated design doc only for large
 architectural changes.
 
+## V6.1.2 — Users & Roles merged into Staff Management (one roster)
+
+- **Staff Management is now the single people surface.** Each staff row shows the
+  directory entry (name, email · phone, company, active) AND their sign-in: login
+  email (link/unlink), role, and a sign-in-enabled switch. A "Sign-ins not linked to
+  staff" section below catches new logins — which **default to Read Only**
+  (`handle_new_user`, since 0019) — so an admin links and promotes them in one place.
+- **`/settings/users` is now a redirect** to `/settings/staff` (old bookmarks work);
+  `users-table.tsx` deleted; the settings hub lists one people card. Role/link/sign-in
+  controls render for admins only and stay admin-enforced server-side
+  (`setUserRole` / `setUserActive` / `linkUserStaff` — reused unchanged); staff CRUD,
+  offboarding, and transfer stay PM/Admin as before.
+- Consolidation, no new capability: two overlapping screens became one; the
+  authoritative link remains `users.staff_id`.
+
+## V6.1.1 — Operations Center hidden by its switch; staff query error surfacing
+
+- **The Settings → Operations switch now shows/hides the entire Operations Center** —
+  sidebar item, ⌘K entry, and the typed URL (redirects to the dashboard) — not just
+  the Interpret controls. Off (the default) means even PM/Admin don't see it; intake
+  documents and proposals are kept behind it. The visibility flag is read once in the
+  app layout and threaded through the existing role-aware nav (`visibleNavItems`);
+  toggling revalidates the layout so the sidebar updates immediately.
+- **Staff pages no longer fail silently.** The Staff Management roster and the staff
+  profile lookup now log query errors instead of rendering an empty table / 404.
+  (Post-migration note: if the log shows "column … schema cache", the Supabase Data
+  API's schema cache is stale — run `NOTIFY pgrst, 'reload schema';` or restart the
+  project API. `types:gen` reads Postgres directly, so types can be current while
+  PostgREST still serves the old schema.)
+
 ## V6.1 — Operations gating, upload fix, workflow polish & staff offboarding
 
 A broad workflow sprint from the office's handwritten suggestions

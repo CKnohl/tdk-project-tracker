@@ -19,7 +19,7 @@ export default async function OperationsSettingsPage() {
     <div className="mx-auto max-w-2xl space-y-5">
       <PageHeader
         title="Operations"
-        description="Optional Operations Center capabilities. Everything here is off by default and changes nothing without human approval."
+        description="The Operations Center is an optional capability — off by default and hidden until turned on here. Nothing it does changes a project without human approval."
       />
       <InterpretationSettings enabled={enabled} keyConfigured={interpretKeyConfigured()} />
     </div>

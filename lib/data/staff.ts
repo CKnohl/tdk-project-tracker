@@ -167,11 +167,14 @@ export interface StaffMember {
 
 export async function getStaffMember(id: string): Promise<StaffMember | null> {
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('staff')
     .select('id, full_name, initials, email, phone, user_id')
     .eq('id', id)
     .maybeSingle();
+  // A query failure must not masquerade as "staff not found" (→ silent 404). If this
+  // logs "column ... schema cache", reload the Data API schema cache in Supabase.
+  if (error) console.error('[getStaffMember] query failed:', error.message);
   return data;
 }
 

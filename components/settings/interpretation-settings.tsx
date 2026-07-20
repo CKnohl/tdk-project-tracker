@@ -26,7 +26,7 @@ export function InterpretationSettings({ enabled, keyConfigured }: { enabled: bo
       setOn(!next);
       return toast.error(res.error);
     }
-    toast.success(next ? 'Document interpretation turned on' : 'Document interpretation turned off');
+    toast.success(next ? 'Operations Center turned on' : 'Operations Center turned off and hidden');
     router.refresh();
   }
 
@@ -35,13 +35,16 @@ export function InterpretationSettings({ enabled, keyConfigured }: { enabled: bo
       <CardContent className="space-y-4 pt-6">
         <div className="flex items-center justify-between gap-4">
           <div className="min-w-0">
-            <p className="text-sm font-medium">Document interpretation</p>
+            <p className="text-sm font-medium">Operations Center &amp; document interpretation</p>
             <p className="text-xs text-muted-foreground">
-              Reads documents in the Operations Center intake queue and drafts suggested tracker
-              updates for review. Suggestions are never applied without a person approving them.
+              Shows the Operations Center (document intake queue) to Project Managers and Admins,
+              and — once a service key is configured — reads intake documents to draft suggested
+              tracker updates for review. Suggestions are never applied without a person approving
+              them. Turning this off hides the Operations Center everywhere; its documents and
+              proposals are kept.
             </p>
           </div>
-          <Switch checked={on} disabled={pending} onCheckedChange={toggle} aria-label="Document interpretation" />
+          <Switch checked={on} disabled={pending} onCheckedChange={toggle} aria-label="Operations Center and document interpretation" />
         </div>
         <div className="rounded-md border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
           {keyConfigured ? (

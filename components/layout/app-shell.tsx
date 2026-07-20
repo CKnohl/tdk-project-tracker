@@ -18,7 +18,15 @@ interface ShellUser {
   role: RoleKey;
 }
 
-export function AppShell({ user, children }: { user: ShellUser; children: React.ReactNode }) {
+export function AppShell({
+  user,
+  operationsVisible,
+  children,
+}: {
+  user: ShellUser;
+  operationsVisible?: boolean;
+  children: React.ReactNode;
+}) {
   const [collapsed, setCollapsed] = React.useState(false);
 
   React.useEffect(() => {
@@ -39,9 +47,9 @@ export function AppShell({ user, children }: { user: ShellUser; children: React.
   return (
     <div className="min-h-screen bg-muted/50">
       <PointerEventsGuard />
-      <Sidebar collapsed={collapsed} onToggle={toggle} role={user.role} />
+      <Sidebar collapsed={collapsed} onToggle={toggle} role={user.role} operationsVisible={operationsVisible} />
       <div className={cn('flex min-h-screen flex-col transition-[padding] duration-200', collapsed ? 'md:pl-16' : 'md:pl-60')}>
-        <Topbar user={user} />
+        <Topbar user={user} operationsVisible={operationsVisible} />
         <main className="flex-1 p-4 md:p-6">
           <div className="mx-auto w-full max-w-7xl">
             <PageTransition>{children}</PageTransition>

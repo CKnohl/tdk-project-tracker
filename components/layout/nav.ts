@@ -46,7 +46,14 @@ export function isActive(item: NavItem, pathname: string) {
   return item.match ? item.match(pathname) : pathname === item.href;
 }
 
-/** Nav items visible to a given role rank (see lib/permissions rankOf). */
-export function visibleNavItems(rank: number): NavItem[] {
-  return NAV_ITEMS.filter((item) => (item.minRank ?? 0) <= rank);
+/**
+ * Nav items visible to a given role rank (see lib/permissions rankOf).
+ * The Operations Center is additionally gated by the admin's Settings → Operations
+ * switch (`operationsVisible`) — when the office hasn't turned it on, the surface
+ * is hidden entirely, even for PM/Admin. Data behind it is kept.
+ */
+export function visibleNavItems(rank: number, operationsVisible = false): NavItem[] {
+  return NAV_ITEMS.filter((item) => (item.minRank ?? 0) <= rank).filter(
+    (item) => item.href !== '/operations' || operationsVisible,
+  );
 }

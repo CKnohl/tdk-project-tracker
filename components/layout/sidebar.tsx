@@ -9,14 +9,18 @@ import { useBadgeData } from '@/lib/hooks/use-badge-data';
 import { rankOf, type RoleKey } from '@/lib/permissions';
 import { cn, formatBadgeCount } from '@/lib/utils';
 
-export function SidebarNav({ collapsed, onNavigate, role }: { collapsed?: boolean; onNavigate?: () => void; role?: RoleKey }) {
+export function SidebarNav({
+  collapsed, onNavigate, role, operationsVisible,
+}: {
+  collapsed?: boolean; onNavigate?: () => void; role?: RoleKey; operationsVisible?: boolean;
+}) {
   const pathname = usePathname();
   // My Work badge = unread notifications + pending reviews (no double-count of
   // assignments, which are already notifications). Shared 15s poll with the bell.
   const { data } = useBadgeData();
   const myWorkBadge = (data?.unread ?? 0) + (data?.reviews ?? 0);
-  // Role-gated nav: the Operations Center (minRank 30) only renders for PM/Admin.
-  const items = visibleNavItems(rankOf(role));
+  // Role-gated nav (Operations Center minRank 30) + the Settings → Operations switch.
+  const items = visibleNavItems(rankOf(role), operationsVisible);
 
   return (
     <nav className={cn('flex flex-col gap-1 py-4', collapsed ? 'items-center px-2' : 'px-3')}>
@@ -74,7 +78,11 @@ export function SidebarBrand({ collapsed }: { collapsed?: boolean }) {
   );
 }
 
-export function Sidebar({ collapsed = false, onToggle, role }: { collapsed?: boolean; onToggle?: () => void; role?: RoleKey }) {
+export function Sidebar({
+  collapsed = false, onToggle, role, operationsVisible,
+}: {
+  collapsed?: boolean; onToggle?: () => void; role?: RoleKey; operationsVisible?: boolean;
+}) {
   return (
     <aside
       className={cn(
@@ -84,7 +92,7 @@ export function Sidebar({ collapsed = false, onToggle, role }: { collapsed?: boo
     >
       <SidebarBrand collapsed={collapsed} />
       <div className="flex-1 overflow-x-hidden overflow-y-auto scrollbar-thin">
-        <SidebarNav collapsed={collapsed} role={role} />
+        <SidebarNav collapsed={collapsed} role={role} operationsVisible={operationsVisible} />
       </div>
       <div className={cn('border-t p-2', collapsed && 'flex justify-center')}>
         <button
