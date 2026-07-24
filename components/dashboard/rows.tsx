@@ -215,7 +215,9 @@ export function ActivityRow({ item }: { item: ActivityItem }) {
           </span>
         </div>
         <div className="truncate text-xs text-muted-foreground">
-          {item.project ? `${item.project.project_number} · ${item.project.name}` : ''} ·{' '}
+          {/* No project join (e.g. the project was deleted, or a general task):
+              fall back to the row's summary instead of a dangling separator. */}
+          {item.project ? `${item.project.project_number} · ${item.project.name} · ` : item.summary ? `${item.summary} · ` : ''}
           {formatRelative(item.created_at)}
         </div>
       </div>

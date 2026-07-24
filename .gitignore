@@ -55,4 +55,5 @@ npx.ps1
 corepack
 corepack.cmd
 nodevars.bat
-recovery-codes.txt 
+recovery-codes.txt .claude/
+recovery-codes.txt

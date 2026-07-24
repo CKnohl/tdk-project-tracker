@@ -5,6 +5,29 @@ per-sprint `docs/HANDOFF_V*.md` files going forward — those stay as history; n
 changes are recorded here. Reserve a dedicated design doc only for large
 architectural changes.
 
+## Fix — project deletion failed with an activity_logs foreign-key violation
+
+Deleting a project raised `insert or update on table "activity_logs" violates foreign
+key constraint "activity_logs_project_id_fkey"`. **Root cause (0011):** the activity
+triggers are AFTER triggers, and on DELETE they insert an activity row pointing at the
+project being deleted in that same statement — the projects trigger inserts
+`project_id = old.id` after the row is gone, and the ON DELETE CASCADE fires each child
+table's delete trigger, which does the same. Deletion is the only path in the system
+that can hand `activity_logs` a UUID missing from `projects`; every other write copies
+`project_id` from a row whose own FK guarantees it. (The old design also could never
+retain a deletion audit: a row referencing the deleted project would be removed by the
+very cascade it records.)
+
+**Fix — `0044_delete_safe_activity_logging.sql`** (no FK changes, no app write paths):
+- `log_project_activity` DELETE → logs with `project_id = NULL` plus a summary
+  (`Deleted project P-#### · Name`), so the audit row is valid and survives the cascade.
+- `log_child_activity` DELETE → skips logging when the parent project is already gone
+  (mid-cascade); single deletes and general tasks (NULL) log exactly as before.
+- `ActivityRow` falls back to the row's `summary` when there is no project join
+  (also removes a stray leading "·" on general-task activity rows).
+
+Apply `0044` via `supabase db push` (no `types:gen` needed — no schema shape change).
+
 ## V6.1.3 — Sidebar pared to the daily surfaces
 
 - **The sidebar is now: Dashboard · (Operations Center when enabled) · My Work ·
